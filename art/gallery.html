@@ -78,7 +78,7 @@
     preview.innerHTML = "";
     for (const shot of data.preview ?? []) {
       const figure = document.createElement("figure");
-      figure.className = shot.src.endsWith(".gif") ? "small" : "wide";
+      figure.className = shot.src.endsWith(".gif") || shot.small ? "small" : "wide";
       figure.innerHTML = `<img src="${shot.src}" alt=""><figcaption></figcaption>`;
       figure.querySelector("figcaption").textContent = shot.caption;
       preview.append(figure);

@@ -139,9 +139,14 @@ def build() -> dict:
         effects("spring", (61, 62, 63), {}, 61, "春天 / 反春的桃花", "结算前弹出「春天！」时配的图。", 3),
     ]
     items.extend(entry for entry in fx if entry)
-    if COVERS.exists() and any(COVERS.glob("doudizhu-s*.png")):
-        items.append(item("cover", "大厅卡片封面", "384×192，和其他游戏封面同一个画风。",
-                          [(p.stem.split("-")[-1], copy_in(p, "covers"), "") for p in sorted(COVERS.glob("doudizhu-s*.png"))], None, scale=1))
+    if (COVERS / "doudizhu-s812-crop.png").exists():
+        items.append(item("cover", "大厅卡片封面（已经上线的是 s812）",
+                          "384×192，和其他游戏封面同一个画风，上下黑边导出时裁掉。第一批三张画了人，PixelLab 把地主帽画成了警帽，看着像警察打牌，全没用，改成不画人重出。",
+                          [(cid, copy_in(COVERS / name, "covers"), label) for cid, name, label in
+                           (("s812", "doudizhu-s812-crop.png", "院里一张矮桌、柿子、辣椒串、灯笼（推荐，现在用的）"),
+                            ("s811", "doudizhu-s811.png", "红地毯，但桌上摆了四手牌（斗地主只有三个人）"),
+                            ("s813", "doudizhu-s813.png", "比较素"))],
+                          "s812", scale=1))
     return {
         "round": "r1",
         "title": "斗地主 · 第一轮：场景、头像、地主帽和斗笠、特效、封面",
@@ -159,7 +164,7 @@ if __name__ == "__main__":
     data = build()
     shots = OUT / "shots"
     if shots.exists():
-        data["preview"] = [{"src": f"shots/{p.name}", "caption": caption} for p, caption in [
+        data["preview"] = [{"src": f"shots/{p.name}", "caption": caption, **({"small": True} if p.name == "phone.png" else {})} for p, caption in [
             (shots / "table-night.png", "牌桌 · 夜间版（1440×790）"),
             (shots / "table-day.png", "牌桌 · 白天版（1440×790）"),
             (shots / "bomb.png", "出炸弹的那一下"),
