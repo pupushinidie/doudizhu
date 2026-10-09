@@ -100,7 +100,7 @@ function App() {
 
   // 首页 → 等候房间 → 牌桌换页面时回到顶部（不然手机上会停在上一页滚到的位置）
   const view = room?.status === "playing" && room.game ? "game" : room ? "room" : "home";
-  useEffect(() => window.scrollTo(0, 0), [view]);
+  useEffect(() => { window.scrollTo(0, 0); }, [view]);
 
   const canSubmit = useMemo(() => {
     if (!connected || busy || name.trim().length < 2 || name.trim().length > 18) return false;

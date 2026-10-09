@@ -8,3 +8,17 @@
 {"time": "2026-10-09 09:56:35", "name": "yard-day-s24", "endpoint": "/create-image-pixen", "usage": {"type": "usd", "usd": 0.015065170526504516}, "seconds": 105.7}
 {"time": "2026-10-09 10:00:24", "name": "avatar", "endpoint": "/generate-image-v2", "usage": {"type": "usd", "usd": 0.115}, "seconds": 229.4, "status": "completed"}
 {"time": "2026-10-09 10:02:59", "name": "hat-landlord", "endpoint": "/generate-image-v2", "usage": {"type": "usd", "usd": 0.08}, "seconds": 154.6, "status": "completed"}
+{"time": "2026-10-09 10:07:11", "name": "hat-farmer", "endpoint": "/generate-image-v2", "usage": {"type": "usd", "usd": 0.08}, "seconds": 252.2, "status": "completed"}
+{"time": "2026-10-09 10:07:25", "name": "bomb-s31", "endpoint": "/create-image-pixflux", "usage": {"type": "usd", "usd": 0.006197280724843343}, "seconds": 14.4}
+{"time": "2026-10-09 10:08:14", "name": "bomb-s32", "endpoint": "/create-image-pixflux", "usage": {"type": "usd", "usd": 0.007413813802931045}, "seconds": 49.0}
+{"time": "2026-10-09 10:08:56", "name": "bomb-s33", "endpoint": "/create-image-pixflux", "usage": {"type": "usd", "usd": 0.008211847490734524}, "seconds": 41.5}
+{"time": "2026-10-09 10:09:29", "name": "rocket-s41", "endpoint": "/create-image-pixflux", "usage": {"type": "usd", "usd": 0.006045840289857653}, "seconds": 33.0}
+{"time": "2026-10-09 10:10:14", "name": "rocket-s42", "endpoint": "/create-image-pixflux", "usage": {"type": "usd", "usd": 0.007647422631581625}, "seconds": 45.1}
+{"time": "2026-10-09 10:10:47", "name": "rocket-s43", "endpoint": "/create-image-pixflux", "usage": {"type": "usd", "usd": 0.006487234751383464}, "seconds": 33.0}
+{"time": "2026-10-09 10:11:32", "name": "boom-s51", "endpoint": "/create-image-pixflux", "usage": {"type": "usd", "usd": 0.00685408279630873}, "seconds": 45.1}
+{"time": "2026-10-09 10:12:08", "name": "boom-s52", "endpoint": "/create-image-pixflux", "usage": {"type": "usd", "usd": 0.006921281311247084}, "seconds": 36.3}
+{"time": "2026-10-09 10:12:49", "name": "boom-s53", "endpoint": "/create-image-pixflux", "usage": {"type": "usd", "usd": 0.006788050307167901}, "seconds": 41.0}
+{"time": "2026-10-09 10:13:36", "name": "spring-s61", "endpoint": "/create-image-pixflux", "usage": {"type": "usd", "usd": 0.007816922240787082}, "seconds": 46.4}
+{"time": "2026-10-09 10:14:11", "name": "spring-s62", "endpoint": "/create-image-pixflux", "usage": {"type": "usd", "usd": 0.006541556040445964}, "seconds": 35.6}
+{"time": "2026-10-09 10:14:47", "name": "spring-s63", "endpoint": "/create-image-pixflux", "usage": {"type": "usd", "usd": 0.006731204085879856}, "seconds": 36.0}
+{"time": "2026-10-09 10:17:09", "name": "hat-farmer2", "endpoint": "/generate-image-v2", "usage": {"type": "usd", "usd": 0.08}, "seconds": 138.4, "status": "completed"}

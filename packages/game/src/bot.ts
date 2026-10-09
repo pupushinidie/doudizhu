@@ -235,15 +235,16 @@ export function botCommand(state: DdzState, seat: number): DdzCommand {
   switch (state.stage) {
     case "showStart":
       return { type: "SHOW_START", show: false };
+    // 门槛按 17 张手牌的牌力分布定（中位数约 9.4）：约一半的牌会叫，前 20% 才抢，前 12% 才加倍。
     case "bidding":
-      return { type: "BID", call: handStrength(player.hand) >= 7 };
+      return { type: "BID", call: handStrength(player.hand) >= 9.8 };
     case "robbing": {
       const strength = handStrength(player.hand);
-      return { type: "ROB", rob: strength >= (seat === state.caller ? 9.5 : 8.5) };
+      return { type: "ROB", rob: strength >= (seat === state.caller ? 13 : 12) };
     }
     case "doubling": {
       const strength = handStrength(player.hand);
-      const threshold = seat === state.landlord ? 10 : 8.5;
+      const threshold = seat === state.landlord ? 14 : 13;
       if (state.config.superDouble && strength >= threshold + 4) return { type: "DOUBLE", factor: 4 };
       return { type: "DOUBLE", factor: strength >= threshold ? 2 : 1 };
     }

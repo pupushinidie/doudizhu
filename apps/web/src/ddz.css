@@ -233,10 +233,15 @@
   pointer-events: none;
 }
 .dz-fx b { font-weight: 400; text-shadow: 4px 0 0 var(--edge), -4px 0 0 var(--edge), 0 4px 0 var(--edge), 0 -4px 0 var(--edge), 4px 4px 0 var(--edge); }
-.dz-fx img { width: 192px; height: 192px; margin-bottom: -48px; image-rendering: pixelated; }
+.dz-fx img { image-rendering: pixelated; }
 .dz-fx.bomb b { color: #ff9b2e; font-size: 72px; }
 .dz-fx.rocket b { color: #ff5e5e; font-size: 72px; }
-.dz-fx.rocket img { width: 128px; height: 128px; animation: dz-rocket 1.4s steps(12, jump-end) both; }
+/* 炸弹：先掉下来（64px 显示 2 倍），再换成爆炸（96px 显示 2 倍） */
+.dz-fx .fx-bomb { position: absolute; left: 50%; top: 50%; width: 128px; height: 128px; margin: -64px 0 0 -64px; animation: dz-bomb-drop 480ms steps(6, jump-end) both; }
+.dz-fx .fx-boom { width: 192px; height: 192px; margin-bottom: -48px; animation: dz-boom 1.1s steps(8, jump-end) 420ms both; }
+@keyframes dz-bomb-drop { 0% { transform: translateY(-140px); opacity: 1; } 85% { transform: none; opacity: 1; } 100% { transform: scale(1.2); opacity: 0; } }
+@keyframes dz-boom { 0% { transform: scale(0.3); opacity: 0; } 1% { opacity: 1; } 40% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+.dz-fx .fx-rocket { width: 128px; height: 128px; margin-bottom: -32px; animation: dz-rocket 1.4s steps(12, jump-end) both; }
 @keyframes dz-rocket { 0% { transform: translateY(160px); } 60% { transform: translateY(-40px); } 100% { transform: translateY(-260px); opacity: 0; } }
 .dz-fx.plane b { color: #7fd0ff; }
 .dz-fx.straight b, .dz-fx.pairs b { color: #a8f07a; font-size: 36px; }
@@ -305,7 +310,7 @@
   pointer-events: none;
 }
 .dz-banner.spring { color: #5a0f2a; background: #ffc4d8; font-size: 48px; }
-.dz-banner img { width: 96px; height: 96px; margin: -24px 0; }
+.dz-banner img { width: 128px; height: 128px; margin: -40px 0; }
 .dz-auto-banner {
   --rim: var(--gold);
   position: absolute;
@@ -622,7 +627,7 @@
 .dz-table.mobile {
   --side: auto;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+  grid-template-rows: auto auto minmax(80px, 1fr) auto auto auto;
   grid-template-areas:
     "left right"
     "top top"
@@ -648,8 +653,8 @@
 .dz-table.mobile .dz-plate.p1 .dz-alert { right: 4px; }
 .dz-table.mobile .dz-bubble { top: calc(100% + 4px); left: 50%; right: auto; font-size: 12px; transform: translateX(-50%); }
 .dz-table.mobile .dz-bubble.b0 { top: auto; left: auto; transform: none; font-size: 24px; }
-.dz-table.mobile .dz-opp { align-items: stretch; gap: 4px; }
-.dz-table.mobile .dz-open-hand { padding: 2px; }
+.dz-table.mobile .dz-opp { min-height: auto; align-items: stretch; gap: 4px; }
+.dz-open-text { padding: 2px 6px; color: var(--gold); background: rgba(14, 20, 36, 0.88); box-shadow: 0 0 0 var(--px) var(--edge); font-size: 12px; line-height: 1.5; word-break: break-all; }
 .dz-table.mobile .dz-top { gap: 6px; justify-content: flex-start; }
 .dz-table.mobile .dz-top > div { padding: 4px 6px; }
 .dz-table.mobile .dz-top .dz-hand-no { display: none; }
@@ -661,7 +666,10 @@
 .dz-table.mobile .dz-plays { gap: 6px; }
 .dz-table.mobile .dz-fx { font-size: 36px; }
 .dz-table.mobile .dz-fx b { font-size: 36px; }
-.dz-table.mobile .dz-fx img { width: 96px; height: 96px; margin-bottom: -24px; }
+.dz-table.mobile .dz-fx .fx-boom { width: 96px; height: 96px; margin-bottom: -24px; }
+.dz-table.mobile .dz-fx :is(.fx-bomb, .fx-rocket) { width: 64px; height: 64px; }
+.dz-table.mobile .dz-fx .fx-bomb { margin: -32px 0 0 -32px; }
+.dz-table.mobile .dz-banner img { width: 64px; height: 64px; margin: -12px 0; }
 .dz-table.mobile .dz-center { min-height: 0; }
 .dz-table.mobile .dz-actions { flex-wrap: wrap; justify-content: center; max-width: 100%; padding: 6px; white-space: normal; gap: 6px; }
 .app-shell .dz-table.mobile .dz-actions :is(.primary-button, .quiet-button) { min-height: 44px; padding: 0 10px; }

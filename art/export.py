@@ -1,4 +1,4 @@
-"""把 selection.json 里选中的美术导出到 apps/web/public/art/（牌面图集由 tiles.py 导出）。
+"""把 selection.json 里选中的美术导出到 apps/web/public/art/（牌面复用掼蛋的像素扑克牌，不在这里）。
 
 用法：python art/export.py
 """
@@ -13,10 +13,15 @@ OUT = ART.parent / "apps/web/public/art"
 R1 = ART / "out/r1"
 
 
-def trim_avatar(src: Path, dst: Path) -> None:
-    """头像：32×32 透明底，原样导出（只按整数倍显示）。"""
+def candidate(folder: str, index: int) -> Path:
+    """generate-image-v2 一次出 64 张：第 0 张叫 <folder>.png，其余 <folder>-<n>.png。"""
+    return R1 / folder / (f"{folder}.png" if index == 0 else f"{folder}-{index}.png")
+
+
+def copy_sprite(src: Path, dst: Path, size: int) -> None:
+    """小图：透明底，原尺寸导出（页面上只按整数倍放大）。"""
     image = Image.open(src).convert("RGBA")
-    assert image.size == (32, 32), image.size
+    assert image.size == (size, size), (src, image.size)
     image.save(dst)
 
 
@@ -26,14 +31,13 @@ def main() -> None:
     for key in ("scene-night", "scene-day"):
         shutil.copyfile(R1 / f"{selection[key]}.png", OUT / f"{key}.png")
     for seat, index in enumerate(selection["avatars"]):
-        name = "avatar.png" if index == 0 else f"avatar-{index}.png"
-        trim_avatar(R1 / "avatar" / name, OUT / f"avatar-{seat}.png")
-    # 立直麻将：日式雀庄
-    for key, target in (("riichi-night", "riichi-night"), ("riichi-day", "riichi-day")):
-        shutil.copyfile(R1 / f"{selection[key]}.png", OUT / f"{target}.png")
-    for seat, index in enumerate(selection["riichi-avatars"]):
-        name = "avatar-jp.png" if index == 0 else f"avatar-jp-{index}.png"
-        trim_avatar(R1 / "avatar-jp" / name, OUT / f"riichi-avatar-{seat}.png")
+        copy_sprite(candidate("avatar", index), OUT / f"avatar-{seat}.png", 40)
+    copy_sprite(candidate("hat-landlord", selection["hat-landlord"]), OUT / "hat-landlord.png", 32)
+    copy_sprite(candidate(selection["hat-farmer"][0], selection["hat-farmer"][1]), OUT / "hat-farmer.png", 32)
+    # 网页图标用地主帽
+    shutil.copyfile(OUT / "hat-landlord.png", OUT / "icon.png")
+    for key, size in (("bomb", 64), ("rocket", 64), ("boom", 96), ("spring", 64)):
+        copy_sprite(R1 / f"{selection[key]}.png", OUT / f"{key}.png", size)
     print("exported to", OUT)
 
 

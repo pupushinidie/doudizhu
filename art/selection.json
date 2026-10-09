@@ -1,0 +1,12 @@
+{
+  "_note": "美术选择（我先挑的，他还没看画廊）。scene 是 512×288；头像、地主帽、斗笠是 generate-image-v2 候选编号；特效是 pixflux 种子。草帽带红箍、草帽红背心的候选太像路飞，不用。",
+  "scene-night": "yard-night-s14",
+  "scene-day": "yard-day-s23",
+  "avatars": [23, 11, 37],
+  "hat-landlord": 25,
+  "hat-farmer": ["hat-farmer2", 22],
+  "bomb": "bomb-s33",
+  "rocket": "rocket-s42",
+  "boom": "boom-s53",
+  "spring": "spring-s63"
+}

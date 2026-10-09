@@ -144,7 +144,7 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
   const [tableRef, layout, tableBox] = useLayout(myCards.length);
   const { hs, ps } = layout;
 
-  useEffect(() => preloadCards(), []);
+  useEffect(() => { preloadCards(); }, []);
 
   const pending = useMemo(() => {
     if (!playing) return false;
@@ -234,12 +234,18 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
   // ---------- 动画：只看 version 变没变 ----------
   const fresh = game.version !== firstVersion.current;
   const fx = useMemo(() => (fresh ? fxFrom(game.events, game.version) : []), [game.version]);
+  // 临时显示的东西（特效、横幅、结算前的停顿）各用一个计时器；下一次状态更新不会把它们的计时取消掉
+  const timers = useRef(new Map<string, number>());
+  const later = (name: string, ms: number, run: () => void) => {
+    window.clearTimeout(timers.current.get(name));
+    timers.current.set(name, window.setTimeout(run, ms));
+  };
+  useEffect(() => () => timers.current.forEach((timer) => window.clearTimeout(timer)), []);
   const [activeFx, setActiveFx] = useState<Fx[]>([]);
   useEffect(() => {
     if (fx.length === 0) return;
     setActiveFx(fx);
-    const timer = window.setTimeout(() => setActiveFx([]), 1800);
-    return () => window.clearTimeout(timer);
+    later("fx", 1800, () => setActiveFx([]));
   }, [fx]);
   const [banner, setBanner] = useState<{ text: string; kind: string } | null>(null);
   useEffect(() => {
@@ -255,10 +261,16 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
     }
     if (!next) return;
     setBanner(next);
-    const timer = window.setTimeout(() => setBanner(null), 2200);
-    return () => window.clearTimeout(timer);
+    later("banner", 2200, () => setBanner(null));
   }, [game.version]);
   const shake = activeFx.some((item) => item.kind === "bomb" || item.kind === "rocket");
+  // 一盘刚结束：先让大家看清最后一手和春天的特效，2 秒后再弹结算
+  const [settling, setSettling] = useState(false);
+  useEffect(() => {
+    if (!fresh || !game.events.some((event) => event.type === "HandEnded")) return;
+    setSettling(true);
+    later("settle", 2000, () => setSettling(false));
+  }, [game.version]);
   const bottomFlip = fresh && game.events.some((event) => event.type === "LandlordChosen");
 
   // ---------- 键盘 ----------
@@ -433,17 +445,17 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
     const align = rel === 1 ? "end" : rel === 2 ? "start" : "center";
     return (
       <div className={`dz-play r${rel}`} key={`play-${seat}`}>
-        {stage === "playing" && entry?.kind === "play" && (
+        {(stage === "playing" || stage === "handEnd") && entry?.kind === "play" && (
           <div className={latest ? "dz-play-cards latest" : "dz-play-cards"} key={`${game.handNo}-${entry.cards.join(".")}`}>
             <CardRow cards={entry.cards} scale={ps} step={Math.round(CARD_W * ps * 0.45)} perRow={layout.mobile ? 8 : 10} align={align} />
             <small className="dz-play-label">{comboLabel(entry.combo)}</small>
           </div>
         )}
-        {stage === "playing" && entry?.kind === "pass" && <span className="dz-pass">不出</span>}
+        {(stage === "playing" || stage === "handEnd") && entry?.kind === "pass" && <span className="dz-pass">不出</span>}
         {activeFx.filter((item) => item.seat === seat && item.kind !== "alert").map((item) => (
           <span key={item.key} className={`dz-fx ${item.kind}`}>
-            {item.kind === "bomb" && <img src={art.boom} alt="" />}
-            {item.kind === "rocket" && <img src={art.rocket} alt="" />}
+            {item.kind === "bomb" && <><img className="fx-bomb" src={art.bomb} alt="" /><img className="fx-boom" src={art.boom} alt="" /></>}
+            {item.kind === "rocket" && <img className="fx-rocket" src={art.rocket} alt="" />}
             <b>{item.text}</b>
           </span>
         ))}
@@ -458,11 +470,14 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
     return (
       <div className={`dz-opp r${rel}`} key={`opp-${seat}`}>
         {plate(seat)}
-        {player.hand.length > 0 && (
+        {player.hand.length > 0 && (layout.mobile ? (
+          // 手机上放不下两排牌：明牌的手牌写成一行点数
+          <div className="dz-open-text" title={`${player.name} 的手牌`}>{cardsText(player.hand)}</div>
+        ) : (
           <div className="dz-open-hand" title={`${player.name} 的手牌`}>
-            <CardRow cards={player.hand} scale={1} step={layout.mobile ? 10 : 14} perRow={10} align={rel === 1 ? "end" : "start"} />
+            <CardRow cards={player.hand} scale={1} step={14} perRow={10} align={rel === 1 ? "end" : "start"} />
           </div>
-        )}
+        ))}
         {activeFx.filter((item) => item.seat === seat && item.kind === "alert").map((item) => <span key={item.key} className="dz-fx alert">{item.text}</span>)}
       </div>
     );
@@ -594,7 +609,7 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
     </div>
   );
 
-  const showSummary = stage === "handEnd" && game.summary && !hideSummary;
+  const showSummary = stage === "handEnd" && game.summary && !hideSummary && !settling;
   const statusMini = (
     <div className="dz-status-mini">
       <strong>{headline}</strong>
@@ -698,7 +713,7 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
       {showSummary && game.phase === "playing" && (
         <HandSummaryDialog game={game} mySeat={mySeat} spectating={spectating} nameOf={nameOf} secondsLeft={secondsLeft} busy={busy} onReady={() => send({ type: "READY" })} onHide={() => setHideSummary(true)} />
       )}
-      {game.phase === "finished" && (
+      {game.phase === "finished" && !settling && (
         <FinalDialog game={game} room={room} mySeat={mySeat} spectating={spectating} nameOf={nameOf} onRematch={onRematch} onLeave={onLeave} />
       )}
     </div>
