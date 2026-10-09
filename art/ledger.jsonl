@@ -1,0 +1,10 @@
+{"time": "2026-10-09 09:46:37", "name": "yard-night-s11", "endpoint": "/create-image-pixen", "usage": {"type": "usd", "usd": 0.010242195076412625}, "seconds": 64.3}
+{"time": "2026-10-09 09:47:52", "name": "yard-night-s12", "endpoint": "/create-image-pixen", "usage": {"type": "usd", "usd": 0.010418239381578234}, "seconds": 75.4}
+{"time": "2026-10-09 09:49:06", "name": "yard-night-s13", "endpoint": "/create-image-pixen", "usage": {"type": "usd", "usd": 0.01045744389957852}, "seconds": 73.7}
+{"time": "2026-10-09 09:50:10", "name": "yard-night-s14", "endpoint": "/create-image-pixen", "usage": {"type": "usd", "usd": 0.009936527146233453}, "seconds": 64.3}
+{"time": "2026-10-09 09:51:46", "name": "yard-day-s21", "endpoint": "/create-image-pixen", "usage": {"type": "usd", "usd": 0.010383977942996555}, "seconds": 95.7}
+{"time": "2026-10-09 09:53:29", "name": "yard-day-s22", "endpoint": "/create-image-pixen", "usage": {"type": "usd", "usd": 0.009905810144212511}, "seconds": 103.0}
+{"time": "2026-10-09 09:54:49", "name": "yard-day-s23", "endpoint": "/create-image-pixen", "usage": {"type": "usd", "usd": 0.010474730226728651}, "seconds": 79.9}
+{"time": "2026-10-09 09:56:35", "name": "yard-day-s24", "endpoint": "/create-image-pixen", "usage": {"type": "usd", "usd": 0.015065170526504516}, "seconds": 105.7}
+{"time": "2026-10-09 10:00:24", "name": "avatar", "endpoint": "/generate-image-v2", "usage": {"type": "usd", "usd": 0.115}, "seconds": 229.4, "status": "completed"}
+{"time": "2026-10-09 10:02:59", "name": "hat-landlord", "endpoint": "/generate-image-v2", "usage": {"type": "usd", "usd": 0.08}, "seconds": 154.6, "status": "completed"}

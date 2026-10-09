@@ -6,13 +6,15 @@
 :root[data-theme="day"] .app-shell * { scrollbar-color: #aebad0 var(--bg); }
 
 
-/* 牌桌（木桌、绿呢）白天也保持原色；桌上的深色小牌子（名牌、听牌提示、操作条、状态条）里的字用夜间的浅色 */
-:root[data-theme="day"] :is(.mj-plate, .mj-status-mini, .mj-ting, .mj-actions, .mj-auto-banner, .mj-chip, .mj-riichi-stick) {
+/* 牌桌（农家院场景）白天也保持原样；桌上深色小牌子（名牌、底牌倍数条、操作条、状态条）里的字用夜间的浅色，
+   只有桌上的按钮（白天是浅底）用白天的深色字 */
+:root[data-theme="day"] .dz-table {
   --text: #eef3fb;
   --muted: #93a3bd;
   --gold: #f0c050;
   --ok: #62c97a;
   --bad: #f25c5c;
+  --veil: rgba(40, 24, 8, 0.2);
 }
-:root[data-theme="day"] .mj-plate.active { background: #3a2c10; }
-:root[data-theme="day"] .mj-table { --veil: rgba(40, 24, 8, 0.18); }
+:root[data-theme="day"] .dz-table :is(.quiet-button, .primary-button) { --text: #1d2433; --muted: #5b6a86; }
+:root[data-theme="day"] .dz-plate.active { background: #3a2c10; }

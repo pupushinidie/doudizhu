@@ -55,7 +55,7 @@ function nick(prefix: string): string {
 }
 
 function create(client: TestSocket, name: string): Promise<LobbyRoomSnapshot> {
-  return new Promise((resolve, reject) => client.emit("room:create", { name, options: { variant: "sichuan" } }, (response: AckResponse<LobbyRoomSnapshot>) => {
+  return new Promise((resolve, reject) => client.emit("room:create", { name, options: { mingpai: false } }, (response: AckResponse<LobbyRoomSnapshot>) => {
     if (response.ok) resolve(response.data);
     else reject(new Error(response.error));
   }));

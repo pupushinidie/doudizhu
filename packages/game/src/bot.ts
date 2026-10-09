@@ -4,7 +4,7 @@
  */
 import { rankCounts, rankOf, sortCards, type Card } from "./cards.js";
 import { beatingMoves, classify, comboKey, type Combo, type Move } from "./combos.js";
-import { nextSeat, timeoutCommand } from "./ddz.js";
+import { nextSeat } from "./ddz.js";
 import type { DdzCommand, DdzState } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -226,10 +226,12 @@ function followMove(state: DdzState, seat: number): Move | null {
   return null;
 }
 
-/** 机器人这一步怎么走。托管的真人按超时的默认动作走（9.4）。 */
+/**
+ * 机器人这一步怎么走（空座位的人机、托管的真人、掉线的人都用它）。
+ * 只用这个座位自己能看到的信息：服务端传进来的是 redactGameForViewer 之后的状态。
+ */
 export function botCommand(state: DdzState, seat: number): DdzCommand {
   const player = state.players[seat]!;
-  if (player.auto && !player.bot) return timeoutCommand(state, seat);
   switch (state.stage) {
     case "showStart":
       return { type: "SHOW_START", show: false };

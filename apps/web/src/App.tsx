@@ -1,24 +1,23 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { DEFAULT_RIICHI_OPTIONS, DEFAULT_SICHUAN_OPTIONS, SEAT_COUNT, VARIANTS, type GameCommand, type GameOptions, type LobbyRoomSnapshot, type PublicRoomSummary, type Tile, type Variant } from "@doudizhu/game";
+import { DEFAULT_OPTIONS, SEAT_COUNT, type Card, type GameCommand, type GameOptions, type LobbyRoomSnapshot, type PublicRoomSummary } from "@doudizhu/game";
 import { art, seatColor } from "./art.js";
+import { CardView } from "./cards.js";
 import { useConfirm } from "./confirm.js";
 import GameBoard from "./GameBoard.js";
 import GameRules from "./GameRules.js";
-import RiichiBoard from "./RiichiBoard.js";
 import OnlineRooms from "./OnlineRooms.js";
 import RoomChat from "./RoomChat.js";
 import { roomRole, RoomSettingsPanel, SeatSwitch } from "./RoomExtras.js";
 import { socket } from "./socket.js";
 import { ThemeToggle, useTheme } from "./theme.js";
-import { TileView } from "./tiles.js";
 import { useVoice } from "./voice.js";
 
 type EntryMode = "create" | "join";
 
 const validRoomCode = /^[A-HJ-NP-Z2-9]{6}$/;
 
-/** 首页摆的几张牌（一万、五筒、一条、九万、发、中）。 */
-const SHOWCASE: Tile[] = [0, 4 * 13 + 1, 4 * 18 + 1, 4 * 8 + 1, 4 * 32 + 1, 4 * 33 + 1];
+/** 首页主图上摆的一手牌：大王、小王、四个 2、A。 */
+const SHOWCASE: Card[] = [53, 52, 48, 49, 50, 51, 44];
 
 // 线上游戏中心在站点根路径；本地开发时跑在 5175 端口。
 const CENTER_URL = import.meta.env.DEV ? `${window.location.protocol}//${window.location.hostname}:5175/` : "/";
@@ -27,21 +26,11 @@ function normalizeRoomCode(value: string): string {
   return value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, "").slice(0, 6);
 }
 
-/** 各玩法的一句话介绍（首页的玩法卡片）。 */
-const VARIANT_BLURB: Record<string, string> = {
-  sichuan: "只用万筒条 108 张，不能吃。开局换三张、定缺一门，一家胡了不散场：血战到底打到三家胡，血流成河胡了还能接着胡。",
-  riichi: "日本麻将：136 张带字牌和红五，能吃碰杠。要有役才能和，门清听牌可以立直；宝牌、振听、符和番，打一个半庄或东风战，按点数排名次。",
-};
-
 function App() {
   const [mode, setMode] = useState<EntryMode>("create");
   const [name, setName] = useState("");
-  const [variant, setVariant] = useState<Variant>("sichuan");
-  const [sichuanMode, setSichuanMode] = useState(DEFAULT_SICHUAN_OPTIONS.mode);
-  const [riichiLength, setRiichiLength] = useState(DEFAULT_RIICHI_OPTIONS.length);
-  const options: GameOptions = variant === "riichi"
-    ? { variant: "riichi", ...DEFAULT_RIICHI_OPTIONS, length: riichiLength }
-    : { variant: "sichuan", ...DEFAULT_SICHUAN_OPTIONS, mode: sichuanMode };
+  const [hands, setHands] = useState<GameOptions["hands"]>(DEFAULT_OPTIONS.hands);
+  const options: GameOptions = { ...DEFAULT_OPTIONS, hands };
   const [confirmAction, confirmDialog] = useConfirm();
   // 白天 / 夜间画面：首页、等候房间、牌桌共用，顶栏按钮随时切换；和游戏中心、其他游戏共用同一个选择。
   const [theme, toggleTheme] = useTheme();
@@ -108,6 +97,10 @@ function App() {
       socket.disconnect();
     };
   }, []);
+
+  // 首页 → 等候房间 → 牌桌换页面时回到顶部（不然手机上会停在上一页滚到的位置）
+  const view = room?.status === "playing" && room.game ? "game" : room ? "room" : "home";
+  useEffect(() => window.scrollTo(0, 0), [view]);
 
   const canSubmit = useMemo(() => {
     if (!connected || busy || name.trim().length < 2 || name.trim().length > 18) return false;
@@ -237,10 +230,9 @@ function App() {
   if (room?.status === "playing" && room.game) {
     const players = room.game.players;
     const watched = players.some((player) => player.id === watchId) ? watchId : players[0]!.id;
-    const Board = room.game.variant === "riichi" ? RiichiBoard : GameBoard;
     return (
-      <main className="app-shell mj-game">
-        <Board
+      <main className="app-shell dz-game">
+        <GameBoard
           room={room}
           busy={busy}
           error={error}
@@ -264,12 +256,12 @@ function App() {
 
   if (room) {
     return (
-      <main className="app-shell mj-room">
+      <main className="app-shell dz-room">
         <header className="topbar">
           <Brand />
           <div className="topbar-right">
             {themeToggle}
-            <GameRules variant={room.options.variant} />
+            <GameRules />
             <ConnectionStatus connected={connected} />
           </div>
         </header>
@@ -291,7 +283,7 @@ function App() {
   }
 
   return (
-    <main className="app-shell mj-home">
+    <main className="app-shell dz-home">
       <header className="topbar">
         <Brand />
         <div className="topbar-right">
@@ -304,35 +296,25 @@ function App() {
 
       <section className="welcome-grid">
         <div className="welcome-copy">
-          <div className="eyebrow"><span className="eyebrow-line" /> 在线对战 · 1–4 人 · 空座机器人补位</div>
-          <h1>麻将</h1>
+          <div className="eyebrow"><span className="eyebrow-line" /> 在线对战 · 1–3 人 · 空座人机补位</div>
+          <h1>斗地主</h1>
           <p className="welcome-description">
-            四个座位，和朋友一起打；人不够时机器人坐空座，一个人也能练手。算番、结算都由程序完成。先选一种玩法：
+            三个座位，一副牌。叫地主、抢地主，地主多拿 3 张底牌，一个人打两个农民；谁先出完谁那一方赢。
+            炸弹、王炸、春天都翻倍。人不够时人机坐空座，一个人也能练手。
           </p>
-          <div className="mj-variants" role="radiogroup" aria-label="选择玩法">
-            {VARIANTS.map((variant) => (
-              <button
-                key={variant.id}
-                type="button"
-                role="radio"
-                aria-checked={options.variant === variant.id}
-                disabled={!variant.ready}
-                className={["mj-variant", options.variant === variant.id ? "selected" : "", variant.ready ? "" : "soon"].join(" ")}
-                onClick={() => variant.ready && setVariant(variant.id)}
-              >
-                <strong>{variant.name}{!variant.ready && <em>制作中</em>}</strong>
-                <span>{VARIANT_BLURB[variant.id]}</span>
-              </button>
-            ))}
-          </div>
-          <div className="mj-hero" style={{ backgroundImage: `url(${variant === "riichi" ? (theme === "day" ? art.riichiDay : art.riichiNight) : theme === "day" ? art.sceneDay : art.sceneNight})` }}>
-            <div className="mj-showcase" aria-hidden="true">
-              {SHOWCASE.map((tile) => <TileView key={tile} tile={tile} scale={2} />)}
+          <ul className="dz-home-points">
+            <li><b>叫抢</b>叫地主、抢地主，每抢一次 ×2</li>
+            <li><b>明牌</b>发牌前明牌 ×5，地主拿底牌后明牌 ×2</li>
+            <li><b>加倍</b>三人同时选，只翻自己和对手之间那份</li>
+          </ul>
+          <div className="dz-hero" style={{ backgroundImage: `url(${theme === "day" ? art.sceneDay : art.sceneNight})` }}>
+            <div className="dz-showcase" aria-hidden="true">
+              {SHOWCASE.map((card, index) => <CardView key={card} card={card} scale={2} style={{ "--i": index } as CSSProperties} />)}
             </div>
           </div>
         </div>
 
-        <div className="mj-home-side">
+        <div className="dz-home-side">
           <section className="entry-card" aria-labelledby="entry-title">
             <div className="entry-card-heading">
               <div>
@@ -379,45 +361,21 @@ function App() {
 
               {mode === "create" ? (
                 <>
-                  {variant === "riichi" ? (
-                    <>
-                      <label className="field-label field-label-spaced" htmlFor="room-mode">立直麻将 · 场数</label>
-                      <div className="capacity-options mj-mode-pick" id="room-mode" role="group" aria-label="选择场数">
-                        {(["hanchan", "tonpuu"] as const).map((length) => (
-                          <button
-                            key={length}
-                            type="button"
-                            className={riichiLength === length ? "capacity-option selected" : "capacity-option"}
-                            aria-pressed={riichiLength === length}
-                            onClick={() => setRiichiLength(length)}
-                          >
-                            <strong>{length === "hanchan" ? "半庄战" : "东风战"}</strong>
-                            <span>{length === "hanchan" ? "东南两圈，约 40 分钟" : "只打东风圈，约 20 分钟"}</span>
-                          </button>
-                        ))}
-                      </div>
-                      <p className="field-hint">红宝牌、食断进房间后房主可以改。空座位开局时由机器人补上。</p>
-                    </>
-                  ) : (
-                    <>
-                      <label className="field-label field-label-spaced" htmlFor="room-mode">四川麻将 · 模式</label>
-                      <div className="capacity-options mj-mode-pick" id="room-mode" role="group" aria-label="选择模式">
-                        {(["xuezhan", "xueliu"] as const).map((mode) => (
-                          <button
-                            key={mode}
-                            type="button"
-                            className={sichuanMode === mode ? "capacity-option selected" : "capacity-option"}
-                            aria-pressed={sichuanMode === mode}
-                            onClick={() => setSichuanMode(mode)}
-                          >
-                            <strong>{mode === "xuezhan" ? "血战到底" : "血流成河"}</strong>
-                            <span>{mode === "xuezhan" ? "胡了下桌" : "胡了接着打"}</span>
-                          </button>
-                        ))}
-                      </div>
-                      <p className="field-hint">换三张、封顶、盘数这些进房间后房主可以改。空座位开局时由机器人补上。</p>
-                    </>
-                  )}
+                  <label className="field-label field-label-spaced" htmlFor="room-hands">打几盘</label>
+                  <div className="capacity-options dz-hands-pick" id="room-hands" role="group" aria-label="选择盘数">
+                    {([3, 6, 9, 12] as const).map((count) => (
+                      <button
+                        key={count}
+                        type="button"
+                        className={hands === count ? "capacity-option selected" : "capacity-option"}
+                        aria-pressed={hands === count}
+                        onClick={() => setHands(count)}
+                      >
+                        {count} 盘
+                      </button>
+                    ))}
+                  </div>
+                  <p className="field-hint">一盘约 3–5 分钟。底分、明牌、加倍、记牌器进房间后房主可以改；空座位开局时由人机补上。</p>
                 </>
               ) : (
                 <>
@@ -455,9 +413,9 @@ function App() {
 
 function Brand() {
   return (
-    <a className="brand" href={import.meta.env.BASE_URL} aria-label="麻将首页">
+    <a className="brand" href={import.meta.env.BASE_URL} aria-label="斗地主首页">
       <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
-      <span className="brand-name">麻将<span> MAHJONG</span></span>
+      <span className="brand-name">斗地主<span> DOU DIZHU</span></span>
     </a>
   );
 }
@@ -473,24 +431,24 @@ function ConnectionStatus({ connected }: { connected: boolean }) {
 
 type Ack = { ok: true; data: void } | { ok: false; error: string };
 
-/** 开房选项：房主在等候房间里改，其他人只看。 */
+/** 开房选项（规则书 8.1）：房主在等候房间里改，其他人只看。 */
 function OptionsPanel({ room }: { room: LobbyRoomSnapshot }) {
   const { isHost } = roomRole(room);
   const [error, setError] = useState("");
-  const options = room.options as Record<string, unknown> & GameOptions;
-  const change = (patch: Record<string, unknown>) => socket.emit("room:options", { ...options, ...patch } as GameOptions, (response: Ack) => setError(response.ok ? "" : response.error));
-  const row = <T extends string | number | boolean | null>(label: string, key: string, values: readonly { value: T; text: string }[]) => (
-    <div className="mj-option-row">
+  const options = room.options as GameOptions & Record<string, unknown>;
+  const change = (patch: Partial<GameOptions>) => socket.emit("room:options", patch, (response: Ack) => setError(response.ok ? "" : response.error));
+  const row = <T extends string | number | boolean>(label: string, key: keyof GameOptions, values: readonly { value: T; text: string }[], disabled = false) => (
+    <div className="dz-option-row">
       <span>{label}</span>
-      <div className="mj-option-values">
+      <div className="dz-option-values">
         {values.map((item) => (
           <button
             key={String(item.value)}
             type="button"
             className={options[key] === item.value ? "room-setting on" : "room-setting"}
             aria-pressed={options[key] === item.value}
-            disabled={!isHost}
-            onClick={() => change({ [key]: item.value })}
+            disabled={!isHost || disabled}
+            onClick={() => change({ [key]: item.value } as Partial<GameOptions>)}
           >
             <i aria-hidden="true" />{item.text}
           </button>
@@ -498,25 +456,16 @@ function OptionsPanel({ room }: { room: LobbyRoomSnapshot }) {
       </div>
     </div>
   );
-  if (options.variant === "riichi") {
-    return (
-      <div className="mj-options">
-        <div className="panel-label">立直麻将 · 开房选项 <span>{isHost ? "房主可以改" : "只有房主能改"}</span></div>
-        {row("场数", "length", [{ value: "hanchan", text: "半庄战" }, { value: "tonpuu", text: "东风战" }])}
-        {row("红宝牌", "aka", [{ value: true, text: "3 张" }, { value: false, text: "无" }])}
-        {row("食断", "kuitan", [{ value: true, text: "有" }, { value: false, text: "无" }])}
-        {error && <p className="feedback feedback-error" role="alert">{error}</p>}
-      </div>
-    );
-  }
+  const onOff = [{ value: true, text: "开" }, { value: false, text: "关" }] as const;
   return (
-    <div className="mj-options">
-      <div className="panel-label">四川麻将 · 开房选项 <span>{isHost ? "房主可以改" : "只有房主能改"}</span></div>
-      {row("模式", "mode", [{ value: "xuezhan", text: "血战到底" }, { value: "xueliu", text: "血流成河" }])}
-      {row("换三张", "swap", [{ value: true, text: "换" }, { value: false, text: "不换" }])}
-      {row("封顶", "cap", [{ value: null, text: "不封顶" }, { value: 3, text: "3 番" }, { value: 4, text: "4 番" }, { value: 6, text: "6 番" }])}
-      {row("自摸", "zimo", [{ value: "fan", text: "加 1 番" }, { value: "base", text: "每家多付 1 分" }])}
-      {row("盘数", "hands", [{ value: 4, text: "4 盘" }, { value: 8, text: "8 盘" }, { value: 16, text: "16 盘" }])}
+    <div className="dz-options">
+      <div className="panel-label">开房选项 <span>{isHost ? "房主可以改" : "只有房主能改"}</span></div>
+      {row("底分", "base", [{ value: 1, text: "1" }, { value: 2, text: "2" }, { value: 5, text: "5" }])}
+      {row("盘数", "hands", [{ value: 3, text: "3 盘" }, { value: 6, text: "6 盘" }, { value: 9, text: "9 盘" }, { value: 12, text: "12 盘" }])}
+      {row("明牌", "mingpai", onOff)}
+      {row("加倍", "doubling", onOff)}
+      {row("超级加倍", "superDouble", onOff, !options.doubling)}
+      {row("记牌器", "tracker", onOff)}
       {error && <p className="feedback feedback-error" role="alert">{error}</p>}
     </div>
   );
@@ -552,9 +501,9 @@ function RoomView({
     <section className="room-layout">
       <div className="room-heading">
         <div>
-          <div className="eyebrow"><span className="eyebrow-line" /> {room.status === "waiting" ? "等待大厅" : "对局已创建"} · {room.options.variant === "riichi" ? "立直麻将" : "四川麻将"}</div>
+          <div className="eyebrow"><span className="eyebrow-line" /> {room.status === "waiting" ? "等待大厅" : "对局已创建"} · 斗地主</div>
           <h1>{spectating ? "你在观战。" : room.status === "waiting" ? "牌桌准备中。" : "好戏即将开始。"}</h1>
-          <p>{spectating ? "等房主开始对局；有空座位时可以坐下一起玩。" : "把房间码分享给朋友；人没到齐也能开始，空座位由机器人补上。"}</p>
+          <p>{spectating ? "等房主开始对局；有空座位时可以坐下一起玩。" : "把房间码分享给朋友；人没到齐也能开始，空座位由人机补上。"}</p>
         </div>
         <div className="room-heading-actions">
           {isHost && <button className="quiet-button danger" type="button" onClick={onDissolve} disabled={busy}>解散房间</button>}
@@ -589,8 +538,8 @@ function RoomView({
             <div className="player-list">
               {room.members.map((member, index) => (
                 <div className="player-row" key={member.id}>
-                  <div className="player-avatar mj-member-avatar" style={{ background: seatColor(index) } as CSSProperties}>
-                    <img src={room.options.variant === "riichi" ? art.riichiAvatar(index) : art.avatar(index)} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} />
+                  <div className="player-avatar dz-member-avatar" style={{ background: seatColor(index) } as CSSProperties}>
+                    <img src={art.avatar(index)} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} />
                     <span>{member.name.slice(0, 1).toUpperCase()}</span>
                   </div>
                   <div className="player-details">
@@ -606,28 +555,26 @@ function RoomView({
               {Array.from({ length: openSeats }, (_, index) => (
                 <div className="player-row open-seat" key={`open-${index}`}>
                   <div className="empty-avatar"><span>＋</span></div>
-                  <div className="player-details"><strong>空座：机器人补位</strong><span>{room.access.open ? "公开房间，路过的人也能坐下" : "朋友用房间码加入就会坐这里"}</span></div>
+                  <div className="player-details"><strong>空座：人机补位</strong><span>{room.access.open ? "公开房间，路过的人也能坐下" : "朋友用房间码加入就会坐这里"}</span></div>
                 </div>
               ))}
             </div>
             <p className="field-hint">
-              {room.options.variant === "riichi"
-                ? `${room.options.length === "tonpuu" ? "东风战" : "半庄战"}，每人 25000 点起，按点数排名次。每手 5 秒，用完扣这一局的 20 秒备用时间，超时自动处理；连续超时 2 次转托管，掉线由机器人代打，回来能接上。`
-                : `打 ${room.options.hands ?? 8} 盘，累计积分最高的人获胜。换三张 20 秒、定缺 10 秒、出牌 15 秒、碰杠胡 8 秒，超时自动处理；连续超时 2 次转托管，掉线由机器人代打，回来能接上。`}
+              打 {room.options.hands} 盘，累计积分最高的人获胜。{room.options.mingpai ? "明牌开始 5 秒、" : ""}叫抢 10 秒、{room.options.doubling ? "加倍 10 秒、" : ""}出牌 25 秒，超时自动处理（引牌出最小的单张，跟牌不出）；连续超时 2 次转托管（人机替你打），掉线由人机代打，回来能接上。
             </p>
             <RoomSettingsPanel room={room} />
             <SeatSwitch room={room} />
             <div className="room-actions">
               {isHost ? (
                 <button className="primary-button" type="button" onClick={onStart} disabled={busy}>
-                  {busy ? <><span className="spinner" /> 正在开始</> : openSeats > 0 ? `开始（${openSeats} 个机器人补位）` : "开始对局"}<span aria-hidden="true">↗</span>
+                  {busy ? <><span className="spinner" /> 正在开始</> : openSeats > 0 ? `开始（${openSeats} 个人机补位）` : "开始对局"}<span aria-hidden="true">↗</span>
                 </button>
               ) : (
                 <div className="host-wait-note"><span className="pulse-dot" /> {spectating ? "等房主开始，开始后在这里观战" : "等待房主开始对局"}</div>
               )}
             </div>
           </section>
-          <div className="mj-room-chat">{chat}</div>
+          <div className="dz-room-chat">{chat}</div>
         </div>
       ) : null}
 

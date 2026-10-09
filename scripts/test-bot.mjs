@@ -1,22 +1,21 @@
 #!/usr/bin/env node
 /**
- * 麻将陪玩机器人（本地联调、线上在服务器上连 localhost 测试用）。先 npm run build:game（规则包的 dist）。
- * 服务器自己会给空座位补机器人；这个脚本是用来模拟「真人」连进房间的（测重连、抢座位、多人房间）。
+ * 斗地主陪玩脚本（本地联调、线上在服务器上连 localhost 测试用）。先 npm run build:game（规则包的 dist）。
+ * 服务器自己会给空座位补人机；这个脚本是用来模拟「真人」连进房间的（测重连、抢座位、多人房间）。
  *
  * 用法：
- *   node scripts/test-bot.mjs host <昵称> [--start-at=N] [--mode=xueliu] [--hands=4]   建房（四川麻将），打印房间码；凑够 N 个真人自动开局
- *   node scripts/test-bot.mjs host <昵称> --variant=riichi [--length=hanchan]         建立直麻将的房（默认东风战）
- *   node scripts/test-bot.mjs join <房间码> <昵称>                                       加入房间
- *   node scripts/test-bot.mjs fill <房间码> <人数> [昵称前缀=陪玩]                        一次加入好几个
+ *   node scripts/test-bot.mjs host <昵称> [--start-at=N] [--hands=3] [--mingpai=0] [--super=1]   建房，打印房间码；凑够 N 个真人自动开局
+ *   node scripts/test-bot.mjs join <房间码> <昵称>                                                加入房间
+ *   node scripts/test-bot.mjs fill <房间码> <人数> [昵称前缀=陪玩]                                 一次加入好几个
  *
- * 环境变量：BOT_URL（默认 http://localhost:3012）、BOT_DELAY（每步之前等多少毫秒，默认 600）、
+ * 环境变量：BOT_URL（默认 http://localhost:3013）、BOT_DELAY（每步之前等多少毫秒，默认 600）、
  *          BOT_PATH（socket.io 路径，默认 /socket.io）、BOT_REMATCH=0（终局后不同意再来一局）。
- * 策略和服务器上的机器人一样（botCommand：向听数贪心）。每次 ack 之后都按最新状态重新判断。
+ * 策略和服务器上的人机一样（botCommand）。每次 ack 之后都按最新状态重新判断。
  */
 import { io } from "socket.io-client";
 import { botCommand, legalCommands } from "@doudizhu/game";
 
-const URL = process.env.BOT_URL ?? "http://localhost:3012";
+const URL = process.env.BOT_URL ?? "http://localhost:3013";
 const DELAY = Number(process.env.BOT_DELAY ?? 600);
 const PATH = process.env.BOT_PATH ?? "/socket.io";
 
@@ -86,7 +85,7 @@ function runBot(name, setup) {
       socket.emit("room:start", (response) => log(response.ok ? "开局" : `开局失败：${response.error}`));
     }
     if (room.game?.phase === "finished" && room.game.finalResult && !room.rematch?.acceptedIds.length) {
-      const scores = room.game.players.map((player) => `${player.name} ${player.score ?? player.points}`).join(" / ");
+      const scores = room.game.players.map((player) => `${player.name} ${player.score}`).join(" / ");
       log("终局：", scores, "胜者", room.game.finalResult.winners.join(","));
     }
     void act();
@@ -101,9 +100,7 @@ function runBot(name, setup) {
 
 if (mode === "host") {
   const [name = "房主陪玩"] = positional;
-  const options = flag("variant", "sichuan") === "riichi"
-    ? { variant: "riichi", length: flag("length", "tonpuu") }
-    : { variant: "sichuan", mode: flag("mode", "xuezhan"), hands: Number(flag("hands", 8)) };
+  const options = { hands: Number(flag("hands", 3)), mingpai: flag("mingpai", "1") !== "0", superDouble: flag("super", "0") === "1" };
   runBot(name, (socket, done, log) => {
     socket.emit("room:create", { name, options }, (response) => {
       if (!response.ok) {

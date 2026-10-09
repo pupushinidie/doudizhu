@@ -355,14 +355,15 @@ describe("T14 超时默认动作", () => {
     expect(state.players.map((player) => player.double)).toEqual([1, 2, 1]);
     expect(state.players[0]!.auto).toBe(true); // 叫地主、加倍连续超时两次
     expect(state.players[2]!.auto).toBe(false);
-    // 托管的人按默认动作出
-    expect(botCommand(state, 0)).toEqual(state.stage === "playing" && state.turn === 0 ? botCommand(state, 0) : botCommand(state, 0));
   });
 
-  it("托管时由默认动作代打；自己操作一次就清零超时计数", () => {
+  it("托管时由机器人代打（出合法的牌）；点取消托管恢复", () => {
     let state = playingWith(["9 4 K", "5 J", "6 Q"], 0);
     state.players[0]!.auto = true;
-    expect(botCommand(state, 0)).toEqual({ type: "PLAY", cards: [state.players[0]!.hand.at(-1)] });
+    const command = botCommand(redactDdz(state, idOf(state, 0)), 0);
+    expect(command.type).toBe("PLAY");
+    state = run(state, 0, command);
+    expect(state.lastPlay?.seat).toBe(0);
     state = run(state, 0, { type: "AUTO", on: false });
     expect(state.players[0]!.auto).toBe(false);
   });

@@ -17,8 +17,8 @@ import urllib.request
 API = "https://api.pixellab.ai/v2"
 ART = pathlib.Path(__file__).resolve().parent
 LEDGER = ART / "ledger.jsonl"
-# 海盐与纸单独记账，先以 $4 为上限（14 种牌的小图、牌背、沙滩牌桌、首页主图、头像、图标、动画）。
-BUDGET_USD = float(os.environ.get("PIXELLAB_BUDGET_USD", "4"))
+# 斗地主单独记账，先以 $3 为上限（乡村大院场景、头像、地主帽和农民草帽、炸弹王炸春天特效）。
+BUDGET_USD = float(os.environ.get("PIXELLAB_BUDGET_USD", "3"))
 
 
 def _key() -> str:

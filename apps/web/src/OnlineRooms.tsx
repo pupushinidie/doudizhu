@@ -56,7 +56,7 @@ function OnlineRooms({ rooms, connected, busy, onJoin }: {
                 <span className="online-room-seats">
                   {room.open ? <em className="online-room-tag open">公开</em> : null}
                   {room.spectators > 0 ? <em className="online-room-tag">观战 {room.spectators}</em> : null}
-                  {variantLabel(room)} · {room.players.length} 人{room.players.length < 4 ? ` + ${4 - room.players.length} 机器人` : ""}
+                  {optionsLabel(room)} · {room.players.length} 人{room.players.length < 3 ? ` + ${3 - room.players.length} 人机` : ""}
                 </span>
               </div>
               <ul className="online-room-players">
@@ -73,7 +73,7 @@ function OnlineRooms({ rooms, connected, busy, onJoin }: {
                 ))}
               </ul>
               {(() => {
-                const canSit = room.open && room.status === "waiting" && room.players.length < 4;
+                const canSit = room.open && room.status === "waiting" && room.players.length < 3;
                 if (!canSit && !room.allowSpectators) return null;
                 return (
                   <div className="online-room-actions">
@@ -98,11 +98,10 @@ function OnlineRooms({ rooms, connected, busy, onJoin }: {
   );
 }
 
-/** 房间卡片上的玩法：「四川 · 血战」这样的短名。 */
-function variantLabel(room: PublicRoomSummary): string {
+/** 房间卡片上的选项：「6 盘 · 底分 1」这样的短说明。 */
+function optionsLabel(room: PublicRoomSummary): string {
   const options = room.options;
-  if (options.variant === "sichuan") return `四川 · ${options.mode === "xueliu" ? "血流" : "血战"}`;
-  return `立直 · ${options.length === "tonpuu" ? "东风" : "半庄"}`;
+  return `${options.hands} 盘 · 底分 ${options.base}`;
 }
 
 export default OnlineRooms;

@@ -1,9 +1,9 @@
 /**
- * 两种麻将牌桌共用的东西：倒计时、按牌桌大小选整数倍和中间方框大小（像素牌只按整数倍放大）。
+ * 牌桌的尺寸计算和倒计时。像素牌只按整数倍放大：自己手牌 hs 倍，桌上出的牌 ps 倍，别人明牌 1 倍。
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { LobbyRoomSnapshot } from "@doudizhu/game";
-import { ROW_PITCH, TILE_H, TILE_W } from "./tiles.js";
+import { CARD_H, CARD_W } from "./cards.js";
 
 export function useCountdown(room: LobbyRoomSnapshot): number | null {
   const [now, setNow] = useState(Date.now());
@@ -17,63 +17,49 @@ export function useCountdown(room: LobbyRoomSnapshot): number | null {
   return Math.max(0, Math.ceil((anchor.ms - Math.max(0, now - anchor.at)) / 1000));
 }
 
-// ---------------------------------------------------------------------------
-// 尺寸：按牌桌区域的大小选整数倍和中间方框大小（像素牌只按整数倍放大）
-
 export interface Layout {
-  /** 牌河、副露、别人手牌的倍数。 */
-  readonly s: number;
   /** 自己手牌的倍数。 */
   readonly hs: number;
-  /** 中间方框边长。 */
-  readonly c: number;
-  /** 牌河 3 排的深度（方框到牌桌边）。 */
-  readonly d: number;
-  /** 牌河宽（6 张）。 */
-  readonly w: number;
-  /** 整个牌河方阵的边长。 */
-  readonly field: number;
+  /** 桌上出的牌、底牌的倍数。 */
+  readonly ps: number;
+  /** 手牌相邻两张错开的像素。 */
+  readonly step: number;
+  /** 手牌每行几张（手机上分两行）。 */
+  readonly perRow: number;
   readonly mobile: boolean;
 }
 
-/** 别人手牌条的厚度、名牌宽度（桌面版）。 */
-export const BAND = 76;
-export const PLATE_W = 120;
+/** 牌桌各部分的高度（桌面版）：上面的底牌倍数条、对手名牌、操作条、自己名牌那一栏。 */
+export const TOP_H = 76;
+export const PLATE_H = 168;
+export const ACTION_H = 64;
+/** 左右两边对手那一栏的宽度、自己名牌的宽度。 */
+export const SIDE_W = 216;
+const PAD = 24;
 
-/** 手机版：最上面一行三家的名牌。 */
-export const MOBILE_OPP_ROW = 56;
-
-export function pickLayout(width: number, height: number): Layout {
-  const mobile = width < 640;
-  const s = mobile ? 1 : 2;
-  const d = (2 * ROW_PITCH + TILE_H) * s;
-  const w = 6 * TILE_W * s;
-  if (mobile) {
-    // 手牌 2 倍分两排；牌河、别人的牌 1 倍
+/**
+ * 按牌桌区域大小挑倍数：手牌尽量大（4 → 3 → 2），出的牌比手牌小一号；
+ * 20 张手牌一排放得下，每张至少露出角上的点数（13 个原始像素）。
+ */
+export function pickLayout(width: number, height: number, handCount: number): Layout {
+  const count = Math.max(handCount, 1);
+  if (width < 640) {
     const hs = 2;
-    const sideBand = 8 + 36;
-    const room = Math.min(width - 2 * sideBand, height - MOBILE_OPP_ROW - 40 - (TILE_H * hs * 2 + 48));
-    const c = Math.max(64, Math.min(140, room - 2 * d));
-    return { s, hs, c, d, w, field: c + 2 * d, mobile };
+    const perRow = count > 10 ? Math.ceil(count / 2) : count;
+    const step = perRow > 1 ? Math.min(18 * hs, Math.floor((width - 16 - CARD_W * hs) / (perRow - 1))) : CARD_W * hs;
+    return { hs, ps: 1, step, perRow, mobile: true };
   }
-  const sideBand = 8 + BAND + 8 + PLATE_W;
-  const topBand = BAND + 8;
-  const mine = (h: number) => TILE_H * h + 64;
-  // 自己的手牌尽量大：4 倍放不下（中间方框小于 120）就 3 倍，再不行 2 倍
-  let hs = 4;
-  let room = 0;
-  for (; hs >= 2; hs -= 1) {
-    room = Math.min(height - topBand - mine(hs), width - 2 * sideBand);
-    if (room - 2 * d >= 120 || hs === 2) break;
-  }
-  // 手牌一排要放得下 14 张
-  while (hs > 2 && 15 * TILE_W * hs + 24 > width) hs -= 1;
-  room = Math.min(height - topBand - mine(hs), width - 2 * sideBand);
-  const c = Math.max(96, Math.min(220, room - 2 * d));
-  return { s, hs, c, d, w, field: c + 2 * d, mobile };
+  const handWidth = width - SIDE_W - 2 * PAD;
+  // 每张至少露出 12 个原始像素（角上的点数和花色）
+  const fits = (hs: number) => 19 * 12 * hs + CARD_W * hs <= handWidth;
+  const need = (hs: number, ps: number) => TOP_H + Math.max(PLATE_H, CARD_H * ps + 16) + CARD_H * ps + 12 + ACTION_H + CARD_H * hs + 8 * hs + PAD;
+  const options: [number, number][] = [[4, 3], [3, 2], [2, 2], [2, 1]];
+  const [hs, ps] = options.find(([h, p]) => fits(h) && need(h, p) <= height) ?? [2, 1];
+  const step = count > 1 ? Math.min(18 * hs, Math.floor((handWidth - CARD_W * hs) / (count - 1))) : CARD_W * hs;
+  return { hs, ps, step, perRow: count, mobile: false };
 }
 
-export function useLayout(): [React.RefObject<HTMLDivElement | null>, Layout, { width: number; height: number }] {
+export function useLayout(handCount: number): [React.RefObject<HTMLDivElement | null>, Layout, { width: number; height: number }] {
   const ref = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState({ width: 1100, height: 700 });
   useLayoutEffect(() => {
@@ -85,6 +71,5 @@ export function useLayout(): [React.RefObject<HTMLDivElement | null>, Layout, { 
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  return [ref, pickLayout(box.width, box.height), box];
+  return [ref, pickLayout(box.width, box.height, handCount), box];
 }
-

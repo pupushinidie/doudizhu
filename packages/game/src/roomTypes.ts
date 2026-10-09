@@ -87,7 +87,8 @@ export interface SendRoomChatPayload {
 
 export interface CreateRoomPayload {
 	readonly name: string;
-	readonly options: GameOptions;
+	/** 没给的选项用默认值。 */
+	readonly options?: Partial<GameOptions>;
 }
 
 /** 用房间码加入，或者从首页列表按房间的公开 id 加入；spectate 为 true 时进来观战。 */
@@ -132,7 +133,7 @@ export interface ClientToServerEvents {
 	"room:kick": (memberId: string, ack: RoomAck<void>) => void;
 	"room:access": (settings: Partial<RoomAccess>, ack: RoomAck<void>) => void;
 	/** 等待中房主修改开房选项（底分、盘数、明牌、加倍……）。 */
-	"room:options": (options: GameOptions, ack: RoomAck<void>) => void;
+	"room:options": (options: Partial<GameOptions>, ack: RoomAck<void>) => void;
 	/** 等待中：观战的人坐到空座位上 / 玩家（房主除外）改成观战。 */
 	"room:sit": (ack: RoomAck<void>) => void;
 	"room:stand": (ack: RoomAck<void>) => void;

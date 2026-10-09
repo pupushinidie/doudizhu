@@ -40,7 +40,7 @@ export interface DdzPlayer {
   readonly name: string;
   /** 空座位上的机器人。 */
   readonly bot: boolean;
-  /** 托管：连续超时 2 次自动打开，点「取消托管」关掉。托管时按超时的默认动作出手。 */
+  /** 托管：连续超时 2 次自动打开，点「取消托管」关掉。托管时由机器人代打（全站统一的做法）。 */
   auto: boolean;
   /** 连续超时次数。 */
   timeouts: number;
