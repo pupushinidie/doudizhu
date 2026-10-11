@@ -20,7 +20,9 @@ import {
 } from "@doudizhu/game";
 import { art, coverSize, seatColor } from "./art.js";
 import { CARD_H, CARD_W, CardRow, CardView, preloadCards } from "./cards.js";
+import { denySound, selectSound, useGameSfx } from "./game-sfx.js";
 import GameRules from "./GameRules.js";
+import { useSfxCountdown } from "./gm-sound.js";
 import { GameRoomMenu, SpectateBar } from "./RoomExtras.js";
 import { socket } from "./socket.js";
 import { useCountdown, useLayout } from "./table.js";
@@ -185,6 +187,9 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
   const myTurn = !spectating && pending;
   const myPlay = myTurn && stage === "playing";
   const following = game.lastPlay !== null;
+  // 动作音效（game-sfx.ts）和自己最后 5 秒的倒计时滴答
+  useGameSfx(game, spectating ? null : mySeat, myTurn);
+  useSfxCountdown(myTurn, secondsLeft);
 
   // ---------- 选牌（点选、拖选）----------
   const [selected, setSelected] = useState<Card[]>([]);
@@ -195,7 +200,7 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
   useEffect(() => setSelected([]), [game.handNo, stage === "playing"]);
   const canSelect = !spectating && playing && stage === "playing" && me.hand.length > 0;
   const handOrder = myCards;
-  const drag = useRef<{ mode: boolean; start: number; base: Set<Card> } | null>(null);
+  const drag = useRef<{ mode: boolean; start: number; base: Set<Card>; last: number } | null>(null);
   const applyRange = (from: number, to: number) => {
     const state = drag.current;
     if (!state) return;
@@ -213,12 +218,18 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
     return element ? handOrder.indexOf(Number(element.dataset.card)) : -1;
   };
   const onHandDown = (event: ReactPointerEvent) => {
-    if (!canSelect || event.button !== 0) return;
+    if (event.button !== 0) return;
+    if (!canSelect) {
+      // 还没到出牌阶段就点手牌：告诉他现在点不了
+      if (!spectating && playing && cardIndexAt(event.clientX, event.clientY) >= 0) denySound();
+      return;
+    }
     const index = cardIndexAt(event.clientX, event.clientY);
     if (index < 0) return;
     const card = handOrder[index]!;
-    drag.current = { mode: !selected.includes(card), start: index, base: new Set(selected) };
+    drag.current = { mode: !selected.includes(card), start: index, base: new Set(selected), last: index };
     applyRange(index, index);
+    selectSound(drag.current.mode);
   };
   const onHandMove = (event: ReactPointerEvent) => {
     if (!drag.current) return;
@@ -227,7 +238,14 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
       return;
     }
     const index = cardIndexAt(event.clientX, event.clientY);
-    if (index >= 0) applyRange(drag.current.start, index);
+    if (index >= 0) {
+      applyRange(drag.current.start, index);
+      // 拖过一张新牌响一声
+      if (index !== drag.current.last) {
+        drag.current.last = index;
+        selectSound(drag.current.mode);
+      }
+    }
   };
   const endDrag = () => { drag.current = null; };
   useEffect(() => {
