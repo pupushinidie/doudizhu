@@ -226,6 +226,10 @@ export function stackDeal(state: DdzState, deck: readonly Card[], firstBidder?: 
   if (firstBidder !== undefined) {
     next.firstBidder = firstBidder;
     next.turn = firstBidder;
+    // 动作记录里的「谁先叫」也跟着改
+    ctx.events.forEach((event, index) => {
+      if (event.type === "Dealt") ctx.events[index] = { ...event, firstBidder };
+    });
   }
   return finish(ctx);
 }

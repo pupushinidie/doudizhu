@@ -273,3 +273,66 @@ export function hintMoves(hand: readonly Card[], prev: Combo | null): Move[] {
   const bombs = groups.filter((group) => isBomb(group.combo));
   return [...whole, ...normal, ...bombs];
 }
+
+/**
+ * 教程练习局和「问咕噜嘎」用：人机这一步怎么走，再配一句玩家听得懂的理由。
+ * 走法就是 botCommand（不改人机），理由按同样的判断条件事后补上。state 是这个座位自己能看到的局面。
+ */
+export function botHint(state: DdzState, seat: number): { command: DdzCommand; reason: string } {
+  const command = botCommand(state, seat);
+  return { command, reason: hintReason(state, seat, command) };
+}
+
+function hintReason(state: DdzState, seat: number, command: DdzCommand): string {
+  const player = state.players[seat]!;
+  const hand = player.hand;
+  switch (command.type) {
+    case "SHOW_START":
+      return "没看牌就明牌风险太大，一般不明牌。";
+    case "BID":
+      return command.call ? "王、2、炸弹不少，拆出来的手数也不多：可以当地主。" : "牌力一般，当农民两个人打一个更稳。";
+    case "ROB":
+      return command.rob ? "牌很强，值得抢：抢一次倍数 ×2。" : "牌没有强到值得多翻一倍。";
+    case "DOUBLE":
+      return command.factor > 1 ? "牌够强，加倍多赢一倍。" : "没有十足把握，先不加倍。";
+    case "LANDLORD_SHOW":
+      return "明牌后农民能看着你的牌配合，一般不划算。";
+    case "READY":
+      return "点「下一盘」继续。";
+    case "AUTO":
+      return "";
+    case "PASS": {
+      const last = state.lastPlay;
+      if (!last) return "";
+      const landlord = state.landlord;
+      if (seat !== landlord && last.seat !== landlord) return "这是队友的牌，农民一伙，不用压。";
+      const moves = beatingMoves(hand, last.combo);
+      if (moves.length === 0) return "压不过，只能不出。";
+      if (moves.every((move) => isBomb(move.combo))) return "只有炸弹压得住，对手还早，炸弹先留着。";
+      return "压的话要拆散好牌，先不跟，留着后面用。";
+    }
+    case "PLAY": {
+      const cards = command.cards;
+      const combo = classify([...cards]).find((reading) => comboKey(reading) === command.as) ?? classify([...cards])[0];
+      if (!combo) return "";
+      if (cards.length === hand.length) return "这一手出完就赢了！";
+      const enemies = enemiesOf(state, seat);
+      const minEnemy = Math.min(...enemies.map((enemy) => state.players[enemy]!.handCount));
+      if (isBomb(combo)) return state.lastPlay ? "对手快出完了（或者炸完你也快走完了）：炸！" : "剩一手普通牌加炸弹：先炸再走。";
+      if (!state.lastPlay) {
+        const landlord = state.landlord!;
+        const mate = seat !== landlord ? [0, 1, 2].find((other) => other !== seat && other !== landlord)! : -1;
+        if (mate >= 0 && nextSeat(seat) === mate && state.players[mate]!.handCount <= 2 && (combo.type === "single" || combo.type === "pair")) {
+          return "下家是队友，快出完了：喂他一手小牌。";
+        }
+        if (minEnemy === 1 && combo.type !== "single") return "对手报单了：不出单张，免得他接走。";
+        if (minEnemy === 2 && combo.type !== "pair") return "对手报双了：不出对子，免得他接走。";
+        if (minEnemy <= 2) return "只剩单张可出：出最大的，别让对手接。";
+        return "先出小的牌，大牌留着收尾。";
+      }
+      if (seat !== state.landlord && state.lastPlay.seat !== state.landlord) return "地主就在下家、快出完了：拿大牌顶住。";
+      if (minEnemy <= 2) return "对手快出完了：用大牌压住。";
+      return "压得住，而且不用拆散别的牌。";
+    }
+  }
+}

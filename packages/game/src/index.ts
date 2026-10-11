@@ -3,7 +3,22 @@ export * from "./cards.js";
 export { allLeadMoves, beatingMoves, beats, canBeat, classify, COMBO_NAMES, comboKey, comboLabel } from "./combos.js";
 export type { Combo, ComboType, Move } from "./combos.js";
 export { DEFAULT_OPTIONS, ddzConfig, HAND_SIZE, multiplierOf, nextSeat, resolvePlay, stackDeal } from "./ddz.js";
-export { decompose, handStrength, hintMoves } from "./bot.js";
+export { botHint, decompose, handStrength, hintMoves } from "./bot.js";
+export {
+  anchorVisible,
+  createPracticeGame,
+  createTutorialGame,
+  firstHint,
+  sameCommand,
+  selectionMatches,
+  TUTORIAL_FINAL_STEP,
+  TUTORIAL_SELF,
+  TUTORIAL_STEPS,
+  tutorialActor,
+  tutorialApply,
+  tutorialCanAct,
+} from "./tutorial.js";
+export type { TutorialCommand, TutorialFace, TutorialStep } from "./tutorial.js";
 export {
   applyCommand,
   botCommand,
