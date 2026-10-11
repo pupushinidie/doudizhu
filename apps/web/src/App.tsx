@@ -11,6 +11,10 @@ import { roomRole, RoomSettingsPanel, SeatSwitch } from "./RoomExtras.js";
 import { socket } from "./socket.js";
 import { ThemeToggle, useTheme } from "./theme.js";
 import { useVoice } from "./voice.js";
+import { TutorialInvite } from "./tutorial/Invite.js";
+import { readTutorial } from "./tutorial/storage.js";
+import { GAME_ID } from "./tutorialGame.js";
+import TutorialMode from "./TutorialMode.js";
 
 type EntryMode = "create" | "join";
 
@@ -44,6 +48,26 @@ function App() {
   const [lobbyRooms, setLobbyRooms] = useState<PublicRoomSummary[]>([]);
   // 观战时从谁的座位看（默认第一位玩家）。
   const [watchId, setWatchId] = useState("");
+  // 新手教程：首页或等候房间点进来（地址带 ?tutorial 时直接打开，游戏中心可以直接链过来）
+  const [tutorialOpen, setTutorialOpen] = useState(() => new URLSearchParams(window.location.search).has("tutorial"));
+
+  function closeTutorial() {
+    setTutorialOpen(false);
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("tutorial")) {
+      params.delete("tutorial");
+      const query = params.toString();
+      window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+    }
+  }
+
+  // 在等候房间里看教程时，房主一开局就回到牌桌（不然这一步会超时、转成托管）
+  useEffect(() => {
+    if (tutorialOpen && room?.status === "playing") {
+      closeTutorial();
+      setNotice("对局开始了，教程先停在这里。");
+    }
+  }, [tutorialOpen, room?.status]);
   const voice = useVoice(room);
 
   // 「房间已创建」「房间码已复制」这类临时提示 4 秒后自动消失，不一直挂在页面上。
@@ -227,6 +251,15 @@ function App() {
     }
   }
 
+  if (tutorialOpen && room?.status !== "playing") {
+    return (
+      <main className="app-shell dz-game tut-on">
+        <TutorialMode name={name} brand={<Brand />} themeToggle={themeToggle} theme={theme} waitingRoom={room?.code} onExit={closeTutorial} />
+        {confirmDialog}
+      </main>
+    );
+  }
+
   if (room?.status === "playing" && room.game) {
     const players = room.game.players;
     const watched = players.some((player) => player.id === watchId) ? watchId : players[0]!.id;
@@ -276,6 +309,15 @@ function App() {
           onKick={kickMember}
           onDissolve={dissolveRoom}
           chat={<RoomChat room={room} voice={voice} />}
+          tutorial={
+            <TutorialInvite
+              record={readTutorial(GAME_ID)}
+              title="等人的时候，先学一下？"
+              text="咕噜嘎带你在真牌桌上打一盘，4 分钟。不会离开房间，房主一开局就自动回来。"
+              again="新手教程（不离开房间）"
+              onOpen={() => setTutorialOpen(true)}
+            />
+          }
         />
         {confirmDialog}
       </main>
@@ -302,6 +344,13 @@ function App() {
             三个座位，一副牌。叫地主、抢地主，地主多拿 3 张底牌，一个人打两个农民；谁先出完谁那一方赢。
             炸弹、王炸、春天都翻倍。人不够时人机坐空座，一个人也能练手。
           </p>
+          <TutorialInvite
+            record={readTutorial(GAME_ID)}
+            title="第一次玩？4 分钟学会"
+            text="咕噜嘎在真牌桌上带你打一盘：叫地主、出牌压牌、炸弹、算分，学完和人机练一盘。"
+            again="再看一遍新手教程"
+            onOpen={() => setTutorialOpen(true)}
+          />
           <ul className="dz-home-points">
             <li><b>叫抢</b>叫地主、抢地主，每抢一次 ×2</li>
             <li><b>明牌</b>发牌前明牌 ×5，地主拿底牌后明牌 ×2</li>
@@ -482,6 +531,7 @@ function RoomView({
   onKick,
   onDissolve,
   chat,
+  tutorial,
 }: {
   room: LobbyRoomSnapshot;
   busy: boolean;
@@ -493,6 +543,8 @@ function RoomView({
   onKick: (memberId: string) => void;
   onDissolve: () => void;
   chat: ReactNode;
+  /** 新手教程入口（观战的人不显示）。 */
+  tutorial?: ReactNode;
 }) {
   const { isHost, spectating } = roomRole(room);
   const openSeats = Math.max(0, SEAT_COUNT - room.members.length);
@@ -505,6 +557,7 @@ function RoomView({
           <h1>{spectating ? "你在观战。" : room.status === "waiting" ? "牌桌准备中。" : "好戏即将开始。"}</h1>
           <p>{spectating ? "等房主开始对局；有空座位时可以坐下一起玩。" : "把房间码分享给朋友；人没到齐也能开始，空座位由人机补上。"}</p>
         </div>
+        {tutorial && !spectating && room.status === "waiting" && <div className="dz-room-tut top">{tutorial}</div>}
         <div className="room-heading-actions">
           {isHost && <button className="quiet-button danger" type="button" onClick={onDissolve} disabled={busy}>解散房间</button>}
           <button className="quiet-button" type="button" onClick={onLeave} disabled={busy || (room.status === "playing" && !spectating)}>
@@ -573,11 +626,13 @@ function RoomView({
                 <div className="host-wait-note"><span className="pulse-dot" /> {spectating ? "等房主开始，开始后在这里观战" : "等待房主开始对局"}</div>
               )}
             </div>
+
           </section>
           <div className="dz-room-chat">{chat}</div>
         </div>
       ) : null}
 
+      {tutorial && !spectating && room.status === "waiting" && <div className="dz-room-tut bottom">{tutorial}</div>}
       {error && <p className="feedback feedback-error room-feedback" role="alert">{error}</p>}
       {notice && <p className="feedback feedback-success room-feedback" role="status">{notice}</p>}
       <div className="room-secure-note"><span>◇</span> {room.access.open ? "公开房间：首页列表里的人可以直接加入空座位。" : "邀请制：要有房间码才能加入；首页列表不显示房间码。"}</div>

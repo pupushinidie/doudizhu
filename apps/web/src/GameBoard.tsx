@@ -25,6 +25,9 @@ import { GameRoomMenu, SpectateBar } from "./RoomExtras.js";
 import { socket } from "./socket.js";
 import { useCountdown, useLayout } from "./table.js";
 import type { Theme } from "./theme.js";
+import { Coach, TipToast } from "./tutorial/Coach.js";
+import { useFirstTimeTips } from "./tutorial/tips.js";
+import { detectTips, GAME_ID, hintFor, TIPS, type Hint } from "./tutorialGame.js";
 
 interface GameBoardProps {
   readonly room: LobbyRoomSnapshot;
@@ -42,10 +45,35 @@ interface GameBoardProps {
   readonly watchId: string;
   readonly onWatch: (playerId: string) => void;
   readonly onLeave: () => void;
+  /** 自己在 room.members 里的 id；默认 socket.id，教程里传固定值。 */
+  readonly selfMemberId?: string;
+  /** online 真实对局；tutorial 剧本进行中（不出提示和小贴士）；practice 练习局（随时能问咕噜嘎）。 */
+  readonly mode?: "online" | "tutorial" | "practice";
+  /** 整场结算框里替代「再来一局」的按钮（练习局放「结束教程」「再练一局」）。 */
+  readonly finalActions?: ReactNode;
+  /** 教程放在侧栏里的进度（替代动作记录下面的聊天）。 */
+  readonly sidePanel?: ReactNode;
+  /** 当前选中的牌（教程用：选对了高亮挪到「出牌」）。 */
+  readonly onSelection?: (cards: readonly Card[]) => void;
+}
+
+/** 宽屏（≥1280）才有右侧栏；窄了侧栏收进抽屉，记牌器改成牌桌上的按钮。 */
+function useWide(): boolean {
+  const query = "(min-width: 1280px)";
+  const [wide, setWide] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const list = window.matchMedia(query);
+    const update = () => setWide(list.matches);
+    list.addEventListener("change", update);
+    return () => list.removeEventListener("change", update);
+  }, []);
+  return wide;
 }
 
 /** 座位相对自己的位置：0 自己（下）、1 下家（右）、2 上家（左）。 */
 type Rel = 0 | 1 | 2;
+/** 教程锚点里的叫法：自己、下家、上家。 */
+const REL_NAME = ["me", "next", "prev"] as const;
 const DOUBLE_TEXT: Record<number, string> = { 1: "不加倍", 2: "加倍", 4: "超级加倍" };
 /** 记牌器从大到小：大王、小王、2、A … 3。 */
 const TRACKER_RANKS = [17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3];
@@ -121,9 +149,10 @@ function fxFrom(events: readonly DdzEvent[], version: number): Fx[] {
 
 // ---------------------------------------------------------------------------
 
-function GameBoard({ room, busy, error, notice, brand, connection, theme, themeToggle, chat, onCommand, onRematch, onDissolve, watchId, onWatch, onLeave }: GameBoardProps) {
+function GameBoard({ room, busy, error, notice, brand, connection, theme, themeToggle, chat, onCommand, onRematch, onDissolve, watchId, onWatch, onLeave, selfMemberId, mode = "online", finalActions, sidePanel, onSelection }: GameBoardProps) {
   const game = room.game as DdzState;
-  const member = room.members.find((candidate) => candidate.id === socket.id);
+  const member = room.members.find((candidate) => candidate.id === (selfMemberId ?? socket.id));
+  const wide = useWide();
   const spectating = !member;
   const myId = member?.playerId ?? watchId;
   const mySeat = Math.max(0, game.players.findIndex((player) => player.id === myId));
@@ -208,6 +237,7 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
 
   // ---------- 选中的牌是什么牌型、能不能压 ----------
   const chosen = useMemo(() => sortCards(selected), [selected]);
+  useEffect(() => onSelection?.(chosen), [chosen.join()]);
   const readings = useMemo(() => classify(chosen), [chosen]);
   const candidates: Combo[] = useMemo(
     () => readings.filter((reading) => !game.lastPlay || beats(game.lastPlay.combo, reading)),
@@ -223,6 +253,20 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
     setHintIndex(hintIndex + 1);
   };
   const playAs = (combo: Combo) => send({ type: "PLAY", cards: chosen, as: comboKey(combo) });
+
+  // 「问咕噜嘎」：只有自己和人机时（练习局，或一个人开的房间，空座都是人机）
+  const botsOnly = room.members.length === 1 && member !== undefined;
+  const canAsk = !spectating && !me.auto && myTurn && (mode === "practice" || (mode === "online" && botsOnly));
+  // 局面换到下一个决定点（step 变了）就收起；同时决定的阶段别人先选完不算
+  const hintKey = game.handNo * 10000 + game.step;
+  const [coachHint, setCoachHint] = useState<{ version: number; hint: Hint } | null>(null);
+  const ask = () => {
+    if (!canAsk) return;
+    const next = hintFor(game, myId);
+    if (next.command?.type === "PLAY") setSelected([...next.command.cards]);
+    setCoachHint({ version: hintKey, hint: next });
+  };
+  const shownHint = coachHint && coachHint.version === hintKey && canAsk ? coachHint.hint : null;
   const selectionNote = (() => {
     if (!myPlay) return "";
     if (chosen.length === 0) return following ? "选能压过上家的牌，或者点「提示」" : "该你出牌：任意牌型都可以";
@@ -280,6 +324,10 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const key = event.key.toLowerCase();
+      if (key === "g" && canAsk) {
+        ask();
+        return;
+      }
       if (!myTurn) {
         if (stage === "handEnd" && playing && !spectating && key === "n" && !game.ready.includes(myId)) send({ type: "READY" });
         if (key === "escape") setSelected([]);
@@ -339,6 +387,7 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
     });
     return lines.reverse();
   }, [game.version]);
+  const tips = useFirstTimeTips(GAME_ID, game.version, () => detectTips(game, myId), TIPS, mode === "online" && !spectating);
   const [sideTab, setSideTab] = useState<"log" | "chat">("log");
   const [chatSeen, setChatSeen] = useState(room.chat.length);
   useEffect(() => { if (sideTab === "chat") setChatSeen(room.chat.length); }, [sideTab, room.chat.length]);
@@ -404,7 +453,7 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
     const alert = stage === "playing" && player.handCount > 0 && player.handCount <= 2;
     const clock = secondsLeft !== null && (active || (waiting && seat === mySeat)) && seat !== mySeat ? secondsLeft : null;
     return (
-      <div className={["dz-plate", `p${rel}`, active ? "active" : "", role ?? ""].join(" ")} style={{ "--seat": seatColor(rel) } as CSSProperties}>
+      <div className={["dz-plate", `p${rel}`, active ? "active" : "", role ?? ""].join(" ")} style={{ "--seat": seatColor(rel) } as CSSProperties} data-tutorial={REL_NAME[rel] === "me" ? "plate-me" : `plate-${REL_NAME[rel]}`}>
         <div className="dz-avatar-box">
           <img className="dz-avatar" src={art.avatar(seat)} alt="" />
           {role && <img className="dz-hat" src={role === "landlord" ? art.hatLandlord : art.hatFarmer} alt="" />}
@@ -444,7 +493,7 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
     const latest = game.lastPlay?.seat === seat;
     const align = rel === 1 ? "end" : rel === 2 ? "start" : "center";
     return (
-      <div className={`dz-play r${rel}`} key={`play-${seat}`}>
+      <div className={`dz-play r${rel}`} key={`play-${seat}`} data-tutorial={entry ? `play-${REL_NAME[rel]}` : undefined}>
         {(stage === "playing" || stage === "handEnd") && entry?.kind === "play" && (
           <div className={latest ? "dz-play-cards latest" : "dz-play-cards"} key={`${game.handNo}-${entry.cards.join(".")}`}>
             <CardRow cards={entry.cards} scale={ps} step={Math.round(CARD_W * ps * 0.45)} perRow={layout.mobile ? 8 : 10} align={align} />
@@ -506,11 +555,11 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
   const bottomCards = game.bottom.length > 0 ? game.bottom : [-1, -1, -1];
   const topInfo = (
     <div className="dz-top">
-      <div className={bottomFlip ? "dz-bottom flip" : "dz-bottom"} aria-label="底牌">
+      <div className={bottomFlip ? "dz-bottom flip" : "dz-bottom"} aria-label="底牌" data-tutorial="bottom">
         <small>底牌</small>
         {bottomCards.map((card, index) => <CardView key={`${index}-${card}`} card={card} scale={layout.mobile ? 1 : Math.min(ps, 2)} style={{ animationDelay: `${index * 120}ms` }} />)}
       </div>
-      <div className="dz-multi" title={`抢地主 ×${2 ** multiplier.robs} · 明牌 ×${multiplier.show} · 炸弹 ×${2 ** multiplier.bombs}`}>
+      <div className="dz-multi" data-tutorial="multi" title={`抢地主 ×${2 ** multiplier.robs} · 明牌 ×${multiplier.show} · 炸弹 ×${2 ** multiplier.bombs}`}>
         <small>倍数</small>
         <b key={multiplier.total} className={fresh ? "bump" : ""}>×{multiplier.total}</b>
         <small>底分 {game.config.base}</small>
@@ -518,7 +567,7 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
       <div className="dz-hand-no">
         <small>第</small><b>{game.handNo}</b><small>/{game.config.hands} 盘</small>
       </div>
-      {trackerOn && <button className="quiet-button dz-tracker-toggle" type="button" aria-expanded={trackerOpen} onClick={() => setTrackerOpen(!trackerOpen)}>记牌器</button>}
+      {trackerOn && <button className="quiet-button dz-tracker-toggle" type="button" aria-expanded={trackerOpen} onClick={() => setTrackerOpen(!trackerOpen)} data-tutorial={wide ? undefined : "tracker"}>记牌器</button>}
       {trackerOn && trackerOpen && <div className="dz-tracker-pop">{trackerNode}</div>}
     </div>
   );
@@ -527,42 +576,48 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
   const timeChip = secondsLeft !== null && myTurn ? <span className={secondsLeft <= 5 ? "dz-actions-time low" : "dz-actions-time"}>{secondsLeft}s</span> : null;
   const actionBar = (() => {
     if (!myTurn) return null;
-    const button = (label: string, onClick: () => void, primary = false, key?: string, extra = "") => (
-      <button className={`${primary ? "primary-button" : "quiet-button"} ${extra}`} type="button" disabled={busy} onClick={onClick}>
+    const button = (label: string, onClick: () => void, primary = false, key?: string, extra = "", anchor?: string) => (
+      <button className={`${primary ? "primary-button" : "quiet-button"} ${extra}`} type="button" disabled={busy} onClick={onClick} data-tutorial={anchor}>
         {label}{key && <small>{key}</small>}
       </button>
     );
+    // 手机上操作条放不下第三、四个按钮：「问咕噜嘎」挪到自己名牌那一行（见 dz-mine）
+    const askButton = canAsk && !layout.mobile ? (
+      <button className="quiet-button dz-ask" type="button" onClick={ask} data-tutorial="btn-ask" title="咕噜嘎告诉你它会怎么走、为什么">问咕噜嘎<small>G</small></button>
+    ) : null;
     switch (stage) {
       case "showStart":
-        return <div className="dz-actions">{button("不明牌", () => send({ type: "SHOW_START", show: false }), false, "N")}{button("明牌开始 ×5", () => send({ type: "SHOW_START", show: true }), true, "Y", "dz-hot")}{timeChip}</div>;
+        return <div className="dz-actions">{button("不明牌", () => send({ type: "SHOW_START", show: false }), false, "N", "", "btn-noshowstart")}{button("明牌开始 ×5", () => send({ type: "SHOW_START", show: true }), true, "Y", "dz-hot", "btn-showstart")}{askButton}{timeChip}</div>;
       case "bidding":
-        return <div className="dz-actions">{button("不叫", () => send({ type: "BID", call: false }), false, "N")}{button("叫地主", () => send({ type: "BID", call: true }), true, "Y")}{timeChip}</div>;
+        return <div className="dz-actions">{button("不叫", () => send({ type: "BID", call: false }), false, "N", "", "btn-nocall")}{button("叫地主", () => send({ type: "BID", call: true }), true, "Y", "", "btn-call")}{askButton}{timeChip}</div>;
       case "robbing":
-        return <div className="dz-actions">{button("不抢", () => send({ type: "ROB", rob: false }), false, "N")}{button("抢地主 ×2", () => send({ type: "ROB", rob: true }), true, "Y", "dz-hot")}{timeChip}</div>;
+        return <div className="dz-actions">{button("不抢", () => send({ type: "ROB", rob: false }), false, "N", "", "btn-norob")}{button("抢地主 ×2", () => send({ type: "ROB", rob: true }), true, "Y", "dz-hot", "btn-rob")}{askButton}{timeChip}</div>;
       case "doubling":
         return (
           <div className="dz-actions">
-            {button("不加倍", () => send({ type: "DOUBLE", factor: 1 }), false, "N")}
-            {button("加倍 ×2", () => send({ type: "DOUBLE", factor: 2 }), true, "Y")}
-            {game.config.superDouble && button("超级加倍 ×4", () => send({ type: "DOUBLE", factor: 4 }), true, "S", "dz-hot")}
+            {button("不加倍", () => send({ type: "DOUBLE", factor: 1 }), false, "N", "", "btn-nodouble")}
+            {button("加倍 ×2", () => send({ type: "DOUBLE", factor: 2 }), true, "Y", "", "btn-double")}
+            {game.config.superDouble && button("超级加倍 ×4", () => send({ type: "DOUBLE", factor: 4 }), true, "S", "dz-hot", "btn-superdouble")}
+            {askButton}
             {timeChip}
           </div>
         );
       case "landlordShow":
-        return <div className="dz-actions">{button("不明牌", () => send({ type: "LANDLORD_SHOW", show: false }), false, "N")}{button("明牌 ×2", () => send({ type: "LANDLORD_SHOW", show: true }), true, "Y", "dz-hot")}{timeChip}</div>;
+        return <div className="dz-actions">{button("不明牌", () => send({ type: "LANDLORD_SHOW", show: false }), false, "N", "", "btn-noshow")}{button("明牌 ×2", () => send({ type: "LANDLORD_SHOW", show: true }), true, "Y", "dz-hot", "btn-show")}{askButton}{timeChip}</div>;
       case "playing":
         return (
           <div className="dz-actions">
-            {following && button(noBeat ? "要不起" : "不出", () => send({ type: "PASS" }), noBeat, "P")}
-            {!noBeat && button("提示", hint, false, "H")}
+            {following && button(noBeat ? "要不起" : "不出", () => send({ type: "PASS" }), noBeat, "P", "", "btn-pass")}
+            {!noBeat && button("提示", hint, false, "H", "", "btn-hint")}
+            {askButton}
             {!noBeat && (candidates.length > 1
-              ? candidates.map((combo) => (
-                <button key={comboKey(combo)} className="primary-button dz-as" type="button" disabled={busy} onClick={() => playAs(combo)}>
+              ? candidates.map((combo, index) => (
+                <button key={comboKey(combo)} className="primary-button dz-as" type="button" disabled={busy} onClick={() => playAs(combo)} data-tutorial={index === 0 ? "btn-play" : undefined}>
                   按 {comboLabel(combo)} 出
                 </button>
               ))
               : (
-                <button className="primary-button" type="button" disabled={busy || candidates.length === 0} onClick={() => candidates[0] && playAs(candidates[0])}>
+                <button className="primary-button" type="button" disabled={busy || candidates.length === 0} onClick={() => candidates[0] && playAs(candidates[0])} data-tutorial="btn-play">
                   出牌<small>空格</small>
                 </button>
               ))}
@@ -581,6 +636,7 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
   const handNode = (
     <div
       className={["dz-hand", canSelect ? "selectable" : "", myPlay ? "my-turn" : ""].join(" ")}
+      data-tutorial="hand"
       style={{ "--hs": hs, "--lift": `${hs * 8}px` } as CSSProperties}
       onPointerDown={onHandDown}
       onPointerMove={onHandMove}
@@ -665,12 +721,15 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
           </div>
           <div className="dz-mine">
             {plate(mySeat)}
+            {canAsk && layout.mobile && (
+              <button className="quiet-button dz-ask dz-ask-float" type="button" onClick={ask} data-tutorial="btn-ask">问咕噜嘎</button>
+            )}
             {handNode}
           </div>
           {banner && <div className={`dz-banner ${banner.kind}`} role="status">{banner.kind === "spring" && <img src={art.spring} alt="" />}{banner.text}</div>}
           {statusMini}
           {me.auto && !spectating && playing && (
-            <div className="dz-auto-banner">
+            <div className="dz-auto-banner" data-tutorial="auto">
               托管中：人机替你出牌
               <button className="primary-button" type="button" onClick={() => send({ type: "AUTO", on: false })}>取消托管</button>
             </div>
@@ -683,13 +742,14 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
             <h2>{headline}</h2>
             {detail && <p>{detail}</p>}
             {showTimer && <span className={secondsLeft! <= 5 ? "dz-timer low" : "dz-timer"}>{secondsLeft}s</span>}
-            {!spectating && playing && stage !== "handEnd" && (
+            {!spectating && playing && stage !== "handEnd" && mode === "online" && (
               <button className="quiet-button dz-auto-toggle" type="button" onClick={() => send({ type: "AUTO", on: !me.auto })}>{me.auto ? "取消托管" : "托管"}</button>
             )}
             {stage === "handEnd" && playing && hideSummary && <button className="primary-button" type="button" onClick={() => setHideSummary(false)}>看结算</button>}
             {(error || shownNotice) && <p className={error ? "dz-feedback error" : "dz-feedback"} role={error ? "alert" : "status"}>{error || shownNotice}</p>}
           </section>
-          {trackerOn && <section className="dz-panel dz-tracker-panel"><h3>记牌器 <small>外面还有</small></h3>{trackerNode}</section>}
+          {sidePanel}
+          {trackerOn && <section className="dz-panel dz-tracker-panel" data-tutorial={wide ? "tracker" : undefined}><h3>记牌器 <small>外面还有</small></h3>{trackerNode}</section>}
           <section className="dz-panel dz-scores">
             {game.players.map((player, seat) => (
               <div key={player.id} className={seat === mySeat ? "mine" : ""}>
@@ -699,7 +759,9 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
               </div>
             ))}
           </section>
-          <section className="dz-panel dz-tabs">
+          {chat === null ? (
+            <section className="dz-panel dz-tabs dz-log-only"><h3>动作记录</h3><ul className="dz-log">{log.map((line) => <li key={line.key}>{line.text}</li>)}</ul></section>
+          ) : <section className="dz-panel dz-tabs">
             <div className="dz-tab-bar" role="tablist">
               <button type="button" role="tab" aria-selected={sideTab === "log"} className={sideTab === "log" ? "active" : ""} onClick={() => setSideTab("log")}>动作记录</button>
               <button type="button" role="tab" aria-selected={sideTab === "chat"} className={sideTab === "chat" ? "active" : ""} onClick={() => setSideTab("chat")}>
@@ -707,15 +769,30 @@ function GameBoard({ room, busy, error, notice, brand, connection, theme, themeT
               </button>
             </div>
             {sideTab === "log" ? <ul className="dz-log">{log.map((line) => <li key={line.key}>{line.text}</li>)}</ul> : <div className="dz-chat">{chat}</div>}
-          </section>
+          </section>}
         </aside>
       </div>
       {showSummary && game.phase === "playing" && (
         <HandSummaryDialog game={game} mySeat={mySeat} spectating={spectating} nameOf={nameOf} secondsLeft={secondsLeft} busy={busy} onReady={() => send({ type: "READY" })} onHide={() => setHideSummary(true)} />
       )}
       {game.phase === "finished" && !settling && (
-        <FinalDialog game={game} room={room} mySeat={mySeat} spectating={spectating} nameOf={nameOf} onRematch={onRematch} onLeave={onLeave} />
+        <FinalDialog game={game} room={room} mySeat={mySeat} spectating={spectating} nameOf={nameOf} onRematch={onRematch} onLeave={onLeave} actions={finalActions} />
       )}
+      {shownHint && (
+        <Coach
+          bubble
+          view={{
+            key: `hint-${game.version}`,
+            say: shownHint.say,
+            ...(shownHint.note ? { note: shownHint.note } : {}),
+            anchor: shownHint.anchor,
+            focus: false,
+            face: "think",
+            actions: <button className="quiet-button" type="button" onClick={() => setCoachHint(null)}>知道了</button>,
+          }}
+        />
+      )}
+      {tips.tip && <TipToast tip={tips.tip} onClose={tips.dismiss} onNever={tips.never} />}
     </div>
   );
 }
@@ -752,14 +829,14 @@ function HandSummaryDialog({ game, mySeat, spectating, nameOf, secondsLeft, busy
           <h2>{title}<small>第 {game.handNo} 盘 · {summary.landlordWon ? "地主" : "农民"}先出完{m.spring === "spring" ? " · 春天" : m.spring === "antiSpring" ? " · 反春" : ""}</small></h2>
           <button className="quiet-button" type="button" onClick={onHide}>看牌桌</button>
         </header>
-        <div className="dz-sum-multi">
+        <div className="dz-sum-multi" data-tutorial="summary-multi">
           <span>底分 <b>{summary.base}</b></span>
           {parts.map((part) => <span key={part.label}>{part.label} <b>×{part.value}</b></span>)}
           <span className="total">倍数 <b>×{m.total}</b></span>
         </div>
-        <ol className="dz-sum-players">
+        <ol className="dz-sum-players" data-tutorial="summary-players">
           {game.players.map((player, seat) => (
-            <li key={player.id} className={[seat === mySeat ? "mine" : "", seat === summary.winner ? "winner" : ""].join(" ")}>
+            <li key={player.id} className={[seat === mySeat ? "mine" : "", seat === summary.winner ? "winner" : ""].join(" ")} data-tutorial={seat === mySeat && !spectating ? "summary-me" : undefined}>
               <div className="dz-sum-who">
                 <strong>{nameOf(seat)}</strong>
                 <small>{seat === summary.landlord ? "地主" : "农民"}{summary.doubles[seat]! > 1 ? ` · ${DOUBLE_TEXT[summary.doubles[seat]!]}` : ""}{seat === summary.winner ? " · 先出完" : ""}</small>
@@ -792,7 +869,7 @@ function HandSummaryDialog({ game, mySeat, spectating, nameOf, secondsLeft, busy
   );
 }
 
-function FinalDialog({ game, room, mySeat, spectating, nameOf, onRematch, onLeave }: {
+function FinalDialog({ game, room, mySeat, spectating, nameOf, onRematch, onLeave, actions }: {
   game: DdzState;
   room: LobbyRoomSnapshot;
   mySeat: number;
@@ -800,6 +877,8 @@ function FinalDialog({ game, room, mySeat, spectating, nameOf, onRematch, onLeav
   nameOf: (seat: number) => string;
   onRematch: (accept: boolean) => void;
   onLeave: () => void;
+  /** 练习局：替代「再来一局」的按钮。 */
+  actions?: ReactNode;
 }) {
   const result = game.finalResult!;
   const [showLast, setShowLast] = useState(false);
@@ -827,7 +906,9 @@ function FinalDialog({ game, room, mySeat, spectating, nameOf, onRematch, onLeav
           ))}
         </ol>
         {game.summary && <button className="quiet-button" type="button" onClick={() => setShowLast(true)}>看最后一盘结算</button>}
-        {spectating ? (
+        {actions ? (
+          <div className="dz-rematch"><div className="gm-panel-actions">{actions}</div></div>
+        ) : spectating ? (
           <div className="dz-rematch">
             <span>{room.rematch ? `等玩家决定要不要再来一局（${room.rematch.acceptedIds.length}/${room.members.length}）` : "对局结束"}</span>
             <div className="gm-panel-actions"><button className="quiet-button" type="button" onClick={onLeave}>离开观战</button></div>

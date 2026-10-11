@@ -27,7 +27,7 @@ function walk(until?: string): DdzState {
   let state = createTutorialGame("你");
   for (const step of TUTORIAL_STEPS) {
     if (step.id === until) break;
-    if (step.anchor) expect(anchorVisible(state, step.anchor), `第 ${step.id} 步的锚点 ${step.anchor} 应该看得见`).toBe(true);
+    if (step.anchor && step.kind !== "watch") expect(anchorVisible(state, step.anchor), `第 ${step.id} 步的锚点 ${step.anchor} 应该看得见`).toBe(true);
     if (step.kind === "do") {
       expect(tutorialActor(state), `第 ${step.id} 步应该轮到你`).toBe(TUTORIAL_SELF);
       const legal = legalCommands(view(state), TUTORIAL_SELF);
@@ -41,6 +41,8 @@ function walk(until?: string): DdzState {
         expect(actor).not.toBe(TUTORIAL_SELF);
         state = tutorialApply(state, actor!, move);
       }
+      // 看对手走的步骤：锚点走完以后一定看得见（对话框等它出现才露面）
+      if (step.anchor) expect(anchorVisible(state, step.anchor), `第 ${step.id} 步走完后锚点 ${step.anchor} 应该看得见`).toBe(true);
     }
   }
   return state;

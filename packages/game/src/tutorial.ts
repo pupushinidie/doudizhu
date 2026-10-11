@@ -42,6 +42,7 @@ export type TutorialStep =
       /** 选牌以后高亮挪到哪：当前选中的牌（按点数写，比如 "9 9"）和它一样时用这个锚点。 */
       readonly then?: readonly { readonly cards: string; readonly anchor: string }[];
     })
+  /** 看对手走：锚点可以是走完才出现的东西（比如他刚出的牌），对话框等它出现了再露面。 */
   | (StepBase & { readonly kind: "watch"; readonly moves: readonly TutorialCommand[] });
 
 /** 自己的玩家 id。 */
@@ -133,7 +134,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: "bid",
     kind: "do",
-    lesson: "叫地主、抢地主",
+    lesson: "叫抢地主",
     say: "你有 2、两张 A、三张 K，牌不错：点「叫地主」。",
     note: "叫了就可能当地主：多拿 3 张底牌，一个人打两个。不想当就点「不叫」。",
     anchor: "btn-call",
@@ -166,7 +167,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: "double-watch",
     kind: "watch",
-    lesson: "加倍、明牌",
+    lesson: "加倍明牌",
     say: "接下来三个人同时选加不加倍，都选完才一起公布。",
     moves: [{ type: "DOUBLE", factor: 1 }, { type: "DOUBLE", factor: 1 }],
   },
@@ -189,7 +190,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: "straight",
     kind: "do",
-    lesson: "出牌和压牌",
+    lesson: "出牌压牌",
     say: "地主先出。选上 7、6、5、4、3 这 5 张，点「出牌」。",
     note: "连着的 5 张以上叫顺子（最大到 A，不能带 2 和王）。按住 7 往右拖到 3，一次就选好了。",
     noteTouch: "连着的 5 张以上叫顺子（最大到 A，不能带 2 和王）。手指按住 7 往右滑到 3，或者一张张点。",
@@ -202,7 +203,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     kind: "watch",
     say: "咕噜一号不出；咕噜二号用 9 到 K 的顺子压住你。",
     note: "要压牌，得出同样的牌型、同样张数、更大的点数。",
-    anchor: "plate-prev",
+    anchor: "play-prev",
     moves: [PASS, play(2, "9 10 J Q K")],
   },
   {
@@ -226,7 +227,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     kind: "watch",
     say: "咕噜二号出飞机：连着的三张 J、三张 Q，各带一张单牌。",
     note: "飞机可以不带，也可以每个三张带一张单牌或一对。",
-    anchor: "plate-prev",
+    anchor: "play-prev",
     moves: [play(2, "J J J Q Q Q 3 4")],
   },
   {
@@ -257,7 +258,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: "pair",
     kind: "do",
-    lesson: "对子、报单报双",
+    lesson: "对子报双",
     say: "又轮到你先出：选上两张 9，出一对。",
     note: "两张一样的牌是对子，只能用更大的对子压（或者炸弹）。",
     anchor: "hand",
@@ -268,7 +269,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     id: "pair-watch",
     kind: "watch",
     say: "咕噜二号用一对 10 压上，他只剩 2 张了！",
-    anchor: "plate-prev",
+    anchor: "play-prev",
     moves: [PASS, play(2, "10 10")],
   },
   {
@@ -333,7 +334,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     kind: "info",
     say: "每个农民和地主之间算一份：底分 × 倍数 × 两人的加倍。",
     note: "你加倍了，所以每个农民输 1 × 8 × 2 = 16 分，你一共赢 32 分。农民赢的时候反过来。",
-    anchor: "summary-players",
+    anchor: "summary-me",
   },
   {
     id: "spring",
@@ -431,7 +432,7 @@ export function anchorVisible(state: DdzState, anchor: string, viewer = 0): bool
     return state.lastPlay === null || beatingMoves(me.hand, state.lastPlay.combo).length > 0;
   }
   if (anchor === "tracker") return state.config.tracker && (stage === "playing" || stage === "landlordShow" || stage === "doubling");
-  if (anchor === "summary-multi" || anchor === "summary-players") return stage === "handEnd" && live && state.summary !== null;
+  if (anchor === "summary-multi" || anchor === "summary-players" || anchor === "summary-me") return stage === "handEnd" && live && state.summary !== null;
   return false;
 }
 

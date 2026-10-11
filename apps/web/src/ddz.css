@@ -695,3 +695,37 @@
   .app-shell .dz-summary footer .primary-button { width: 100%; min-width: 0; }
   .app-shell .dz-final .gm-panel-actions { flex-direction: column; }
 }
+
+/* ---------- 新手教程 ---------- */
+.dz-home .welcome-copy .tut-invite { margin: 12px 0 0; }
+/* 等候房间：宽屏放在标题和「离开房间」中间，手机放到最下面（第一屏留给「开始」） */
+.dz-room .room-heading .dz-room-tut.top { flex: 0 1 560px; min-width: 0; margin-left: auto; }
+.dz-room-tut .tut-invite { margin: 0; }
+.dz-room-tut.bottom { display: none; margin-top: 16px; }
+@media (max-width: 759px) {
+  .dz-room .room-heading .dz-room-tut.top { display: none; }
+  .dz-room-tut.bottom { display: block; }
+}
+.app-shell .dz-actions .dz-ask { border-color: var(--gold); }
+.dz-log-only h3 { margin: 10px 14px 0; color: var(--muted); font-size: 12px; font-weight: 400; }
+@media (min-width: 900px) and (max-height: 820px) {
+  .dz-home-points { gap: 2px; margin-top: 8px; }
+}
+@media (max-width: 899px) {
+  /* 手机首页：第一屏留给「进入牌桌」，教程邀请放在它下面 */
+  .dz-home .welcome-copy .tut-invite, .dz-home .welcome-copy .tut-again { order: 3; margin: 0; }
+}
+@media (max-width: 559px) {
+  /* 手机上整场结算：名字别挤成两行，「最后一盘」省掉 */
+  .dz-standings li { grid-template-columns: 28px minmax(0, 1fr) 64px; }
+  .dz-standings small { display: none; }
+  .dz-standings strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+}
+/* 小贴士：宽屏放到右侧栏下面（盖住动作记录），别盖住底牌倍数条和情况栏 */
+@media (min-width: 1280px) {
+  .dz-screen .tut-toast { top: auto; bottom: 16px; right: 16px; left: auto; translate: none; transform: none; flex-wrap: wrap; width: 300px; }
+  .dz-screen .tut-toast p { flex: 1 1 180px; }
+  .dz-screen .tut-toast-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; width: 100%; }
+}
+.dz-table.mobile .dz-mine { position: relative; }
+.app-shell .dz-table.mobile .dz-ask-float { position: absolute; top: 0; right: 0; width: auto; min-height: 40px; margin: 0; padding: 0 10px; font-size: 24px; }
