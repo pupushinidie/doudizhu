@@ -49,7 +49,17 @@ npm workspaces 单仓库：
 
 只通过 `redactDdz` 下发：别人的手牌只给张数（明牌开始或地主明牌的人、一盘结束时公开）；底牌在确定地主前是 3 个 -1；加倍在 3 人都选完前只给「选没选」；种子、随机数状态、操作记录不下发。观战默认只看公开信息，房主可以打开「观战看手牌」。
 
+## 新手教程
+
+站内统一做法（`~/projects/pipeline/handbook/tutorial-notes.md`，参考实现欲罢不能）：咕噜嘎在真正的牌桌（GameBoard）上带你打一盘，不连服务器，学完和两个人机练一盘。
+
+- 剧本 `packages/game/src/tutorial.ts`：30 步 12 课，三人一整盘，用 `stackDeal` 摆好牌（不洗牌、不用随机数）。你叫地主 → 咕噜一号抢 → 你抢回来（×4）→ 底牌凑成四张 8 → 加倍、不明牌 → 顺子被压、不出 → 咕噜二号出飞机剩 4 张 → 你炸（×8）→ 对 9 被对 10 压、咕噜二号报双 → 点「提示」出对 2 → 三带一 → 三张 A 出完 → 结算（你 +32，农民各 −16）→ 春天反春、本站设定。练习局 `createPracticeGame`：一场 1 盘，座位发牌随机。
+- 网页：共用教练层 `apps/web/src/tutorial/`（从欲罢不能复制，不改逻辑）、`TutorialMode.tsx`、`tutorialGame.ts`（「问咕噜嘎」的说法、第一次小贴士）。入口在首页简介下面（手机放在「进入牌桌」下面）和等候房间标题旁边（手机放最下面）；地址带 `?tutorial` 直接打开。
+- 「问咕噜嘎」（键盘 G）：人机（`botHint`，就是 `botCommand` 加一句理由）告诉你它会怎么走，出牌时替你选好牌。只在练习局和一个人加人机的房间里有；和原来的「提示」（循环能压的出法）不是一个东西。
+- 锚点 `data-tutorial`：`hand`、`bottom`、`multi`、`tracker`、`plate-me/next/prev`、`play-me/next/prev`、`btn-call/nocall/rob/norob/double/nodouble/show/noshow/showstart/noshowstart/play/pass/hint/ask`、`summary-multi/players/me`、`auto`。
+- 走查：`~/projects/qa-reports/tools/tut-ddz.mjs <输出目录> <flow|skip|waiting|room> [尺寸] [主题]`（SHORT=1 只走到练习局开头）。
+
 ## 测试
 
-- `npm test`：71 个（规则书 T1–T14 全写成单测、14 种牌型和比较、300 局随机合法操作查不变量和泄露、100 局人机对打、服务器观战和挤登录）。
+- `npm test`：82 个（含教程剧本 11 个）（规则书 T1–T14 全写成单测、14 种牌型和比较、300 局随机合法操作查不变量和泄露、100 局人机对打、服务器观战和挤登录）。
 - 浏览器（`~/projects/qa-reports/tools/`）：`ddz-play.mjs` 真人座位点按钮打完整场（明牌开始、叫抢、加倍、地主明牌、提示出牌、手点出牌、不出、结算、再来一局），量字号、溢出、滚动、裂图；`ddz-drag.mjs` 拖选、往回拖取消、Esc / 右键清空、提示循环、空格出牌、手机触摸拖选；`ddz-scenes.mjs` 用预览页（`apps/web/preview.html`，不提交）看多种认法、明牌、炸弹、王炸、报单、春天、终局、观战。
