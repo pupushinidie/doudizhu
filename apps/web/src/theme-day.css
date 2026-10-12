@@ -5,6 +5,10 @@
 :root[data-theme="day"] { color-scheme: light; }
 :root[data-theme="day"] .app-shell * { scrollbar-color: #aebad0 var(--bg); }
 
+/* 全屏背景白天版：底色配白天的院子，罩色换成淡白 */
+:root[data-theme="day"] .dz-backdrop { background: #e9e2cf; }
+:root[data-theme="day"] .dz-backdrop-veil { background: #ffffff; opacity: 0.2; }
+
 
 /* 牌桌（农家院场景）白天也保持原样；桌上深色小牌子（名牌、底牌倍数条、操作条、状态条）里的字用夜间的浅色，
    只有桌上的按钮（白天是浅底）用白天的深色字 */

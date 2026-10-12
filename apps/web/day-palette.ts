@@ -39,6 +39,7 @@ export const palette: DayPalette = {
     "calc(var(--px) * 2) calc(var(--px) * 2) 0 var(--edge)": "calc(var(--px) * 2) calc(var(--px) * 2) 0 #f0d890",
   },
   keep: [
+    "dz-backdrop", "dz-backdrop-art", "dz-backdrop-veil",
     "dz-table", "dz-top", "dz-bottom", "dz-multi", "dz-hand-no", "dz-tracker-pop", "dz-plate", "dz-avatar-box", "dz-chip", "dz-role",
     "dz-count", "dz-clock", "dz-alert", "dz-bubble", "dz-open-hand", "dz-open-text", "dz-plays", "dz-play", "dz-play-cards", "dz-play-label", "dz-pass",
     "dz-fx", "dz-center", "dz-actions", "dz-actions-time", "dz-note", "dz-mine", "dz-hand", "dz-banner", "dz-auto-banner", "dz-status-mini", "dz-card",

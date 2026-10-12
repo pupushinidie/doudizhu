@@ -729,3 +729,20 @@
 }
 .dz-table.mobile .dz-mine { position: relative; }
 .app-shell .dz-table.mobile .dz-ask-float { position: absolute; top: 0; right: 0; width: auto; min-height: 40px; margin: 0; padding: 0 10px; font-size: 24px; }
+
+/* ---------- 全屏背景：农家院场景铺满窗口（首页、等候房间、牌桌、教程、观战都是 <main> 第一个子元素） ---------- */
+.dz-backdrop { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; background: #191307; }
+.dz-backdrop-art {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100vw, calc(100vh * 16 / 9));
+  height: max(100vh, calc(100vw * 9 / 16));
+  transform: translate(-50%, -50%);
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+}
+.dz-backdrop-veil { position: absolute; inset: 0; background: #0c0904; opacity: 0.4; }
+.app-shell.dz-home > :not(.dz-backdrop):not(.gm-modal-backdrop),
+.app-shell.dz-room > :not(.dz-backdrop):not(.gm-modal-backdrop),
+.app-shell.dz-game > :not(.dz-backdrop):not(.gm-modal-backdrop) { position: relative; z-index: 1; }

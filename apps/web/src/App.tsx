@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { DEFAULT_OPTIONS, SEAT_COUNT, type Card, type GameCommand, type GameOptions, type LobbyRoomSnapshot, type PublicRoomSummary } from "@doudizhu/game";
-import { art, seatColor } from "./art.js";
+import { art, bgArt, seatColor } from "./art.js";
 import { CardView } from "./cards.js";
 import { useConfirm } from "./confirm.js";
 import GameBoard from "./GameBoard.js";
@@ -268,6 +268,7 @@ function App() {
   if (tutorialOpen && room?.status !== "playing") {
     return (
       <main data-gc-table className="app-shell dz-game tut-on">
+        <DzBackdrop theme={theme} />
         <TutorialMode name={name} brand={<Brand />} themeToggle={themeToggle} theme={theme} waitingRoom={room?.code} onExit={closeTutorial} />
         {confirmDialog}
       </main>
@@ -279,6 +280,7 @@ function App() {
     const watched = players.some((player) => player.id === watchId) ? watchId : players[0]!.id;
     return (
       <main data-gc-table className="app-shell dz-game">
+        <DzBackdrop theme={theme} />
         <GameBoard
           room={room}
           busy={busy}
@@ -304,6 +306,7 @@ function App() {
   if (room) {
     return (
       <main className="app-shell dz-room">
+        <DzBackdrop theme={theme} />
         <header className="topbar">
           <Brand />
           <div className="topbar-right">
@@ -340,6 +343,7 @@ function App() {
 
   return (
     <main className="app-shell dz-home">
+      <DzBackdrop theme={theme} />
       <header className="topbar">
         <Brand />
         <div className="topbar-right">
@@ -370,10 +374,8 @@ function App() {
             <li><b>明牌</b>发牌前明牌 ×5，地主拿底牌后明牌 ×2</li>
             <li><b>加倍</b>三人同时选，只翻自己和对手之间那份</li>
           </ul>
-          <div className="dz-hero" style={{ backgroundImage: `url(${theme === "day" ? art.sceneDay : art.sceneNight})` }}>
-            <div className="dz-showcase" aria-hidden="true">
-              {SHOWCASE.map((card, index) => <CardView key={card} card={card} scale={2} style={{ "--i": index } as CSSProperties} />)}
-            </div>
+          <div className="dz-showcase" aria-hidden="true">
+            {SHOWCASE.map((card, index) => <CardView key={card} card={card} scale={2} style={{ "--i": index } as CSSProperties} />)}
           </div>
         </div>
 
@@ -471,6 +473,16 @@ function App() {
         </div>
       </section>
     </main>
+  );
+}
+
+/** 全屏背景：农家院场景铺满窗口（16:9 居中裁切），上面一层罩色让面板更突出。首页、等候房间、牌桌、教程、观战都放在 <main> 的第一个子元素。 */
+export function DzBackdrop({ theme }: { theme: "day" | "night" }) {
+  return (
+    <div className="dz-backdrop" aria-hidden="true">
+      <div className="dz-backdrop-art" style={{ backgroundImage: `url(${theme === "day" ? bgArt.day : bgArt.night})` }} />
+      <div className="dz-backdrop-veil" />
+    </div>
   );
 }
 

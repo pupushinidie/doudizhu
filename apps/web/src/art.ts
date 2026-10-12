@@ -1,6 +1,12 @@
 /** 美术资源（art/ 下的脚本导出到 public/art/）和座位色。 */
 const BASE = `${import.meta.env.BASE_URL}art/`;
 
+/** 全屏背景（首页、等候房间、牌桌、教程、观战都铺满）：和场景图同一张，512×288。 */
+export const bgArt = {
+  night: `${BASE}bg/night.png`,
+  day: `${BASE}bg/day.png`,
+};
+
 export const art = {
   /** 乡村大院场景（512×288）：夜间灯笼月光、白天柿子树麦垛。牌桌背景和首页主图。 */
   sceneNight: `${BASE}scene-night.png`,
